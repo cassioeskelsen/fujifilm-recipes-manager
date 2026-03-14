@@ -4,7 +4,23 @@ import subprocess
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from src.domain.dataclasses import ImageExifData
+from src.domain.dataclasses import FujifilmRecipeData, ImageExifData
+from src.domain.recipe_values import (
+    clarity_from_exif,
+    color_chrome_effect_from_exif,
+    color_chrome_fx_blue_from_exif,
+    color_from_exif,
+    d_range_priority_from_exif,
+    dynamic_range_from_exif,
+    film_simulation_from_exif,
+    highlight_from_exif,
+    monochromatic_color_from_exif,
+    noise_reduction_from_exif,
+    shadow_from_exif,
+    sharpness_from_exif,
+    white_balance_from_exif,
+    white_balance_fine_tune_from_exif,
+)
 
 EXIFTOOL_FIELD_MAP = {
     # Standard fields (non-FujiFilm group)
@@ -111,7 +127,8 @@ _EXIF_DATE_RE = re.compile(
 _WB_FINE_TUNE_RE = re.compile(r"(Red|Blue)\s+([+-]?\d+)")
 
 # Regex to strip the [Group] prefix added by exiftool -G1
-_G1_PREFIX_RE = re.compile(r"^\[(\w+)\]\s+")
+# Group names can contain hyphens (e.g. XMP-crs), so use [^\]] instead of \w+.
+_G1_PREFIX_RE = re.compile(r"^\[([^\]]+)\]\s+")
 
 # When a field appears in multiple groups, use the value from this group.
 # Default is FujiFilm; fields listed here override that default.
@@ -181,6 +198,34 @@ def read_image_exif(image_path: str) -> ImageExifData:
             metadata["white_balance_fine_tune"]
         )
     return ImageExifData(**metadata)
+
+
+def exif_to_recipe(exif: ImageExifData) -> FujifilmRecipeData:
+    """Convert an ImageExifData instance to a FujifilmRecipeData."""
+    film_simulation = film_simulation_from_exif(exif.film_simulation, exif.color).display_name
+    d_range_priority = d_range_priority_from_exif(exif.d_range_priority, exif.d_range_priority_auto)
+    dynamic_range = dynamic_range_from_exif(exif.dynamic_range_setting, exif.development_dynamic_range) if d_range_priority.value == "Off" else ""
+    wb_red, wb_blue = white_balance_fine_tune_from_exif(exif.white_balance_fine_tune)
+    return FujifilmRecipeData(
+        film_simulation=film_simulation,
+        dynamic_range=dynamic_range,
+        d_range_priority=d_range_priority.value,
+        grain_roughness=exif.grain_effect_roughness,
+        grain_size=exif.grain_effect_size,
+        color_chrome_effect=color_chrome_effect_from_exif(exif.color_chrome_effect).value,
+        color_chrome_fx_blue=color_chrome_fx_blue_from_exif(exif.color_chrome_fx_blue).value,
+        white_balance=white_balance_from_exif(exif.white_balance, exif.color_temperature),
+        white_balance_red=wb_red,
+        white_balance_blue=wb_blue,
+        highlight=highlight_from_exif(exif.highlight_tone),
+        shadow=shadow_from_exif(exif.shadow_tone),
+        color=color_from_exif(exif.color),
+        sharpness=sharpness_from_exif(exif.sharpness),
+        high_iso_nr=noise_reduction_from_exif(exif.noise_reduction),
+        clarity=clarity_from_exif(exif.clarity),
+        monochromatic_color_warm_cool=monochromatic_color_from_exif(exif.bw_adjustment),
+        monochromatic_color_magenta_green=monochromatic_color_from_exif(exif.bw_magenta_green),
+    )
 
 
 def collect_image_paths(folder: str) -> list[str]:

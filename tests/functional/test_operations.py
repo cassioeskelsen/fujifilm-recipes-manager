@@ -43,23 +43,23 @@ class TestProcessImageEndToEnd:
         assert image.date_taken == datetime(2026, 3, 9, 9, 29, 32, tzinfo=timezone(timedelta(hours=11)))
 
         # Recipe
-        assert image.recipe is not None
-        assert image.recipe.film_simulation == "Classic Negative"
-        assert image.recipe.dynamic_range == "Standard"
-        assert image.recipe.dynamic_range_setting == "Manual"
-        assert image.recipe.development_dynamic_range == "400"
-        assert image.recipe.white_balance == "Auto"
-        assert image.recipe.white_balance_fine_tune == "Red +3, Blue -5"
-        assert image.recipe.highlight_tone == "0 (normal)"
-        assert image.recipe.shadow_tone == "+1 (medium hard)"
-        assert image.recipe.color == "+4 (highest)"
-        assert image.recipe.sharpness == "-1 (medium soft)"
-        assert image.recipe.noise_reduction == "-4 (weakest)"
-        assert image.recipe.clarity == "0"
-        assert image.recipe.color_chrome_effect == "Off"
-        assert image.recipe.color_chrome_fx_blue == "Strong"
-        assert image.recipe.grain_effect_roughness == "Off"
-        assert image.recipe.grain_effect_size == "Off"
+        assert image.fujifilm_exif is not None
+        assert image.fujifilm_exif.film_simulation == "Classic Negative"
+        assert image.fujifilm_exif.dynamic_range == "Standard"
+        assert image.fujifilm_exif.dynamic_range_setting == "Manual"
+        assert image.fujifilm_exif.development_dynamic_range == "400"
+        assert image.fujifilm_exif.white_balance == "Auto"
+        assert image.fujifilm_exif.white_balance_fine_tune == "Red +3, Blue -5"
+        assert image.fujifilm_exif.highlight_tone == "0 (normal)"
+        assert image.fujifilm_exif.shadow_tone == "+1 (medium hard)"
+        assert image.fujifilm_exif.color == "+4 (highest)"
+        assert image.fujifilm_exif.sharpness == "-1 (medium soft)"
+        assert image.fujifilm_exif.noise_reduction == "-4 (weakest)"
+        assert image.fujifilm_exif.clarity == "0"
+        assert image.fujifilm_exif.color_chrome_effect == "Off"
+        assert image.fujifilm_exif.color_chrome_fx_blue == "Strong"
+        assert image.fujifilm_exif.grain_effect_roughness == "Off"
+        assert image.fujifilm_exif.grain_effect_size == "Off"
 
     def test_is_idempotent(self):
         image1 = process_image(SAMPLE_IMAGE)
@@ -72,5 +72,5 @@ class TestProcessImageEndToEnd:
         process_image(SAMPLE_IMAGE)
 
         from_db = Image.objects.get(filepath=SAMPLE_IMAGE)
-        assert from_db.recipe.film_simulation == "Classic Negative"
+        assert from_db.fujifilm_exif.film_simulation == "Classic Negative"
         assert from_db.camera_make == "FUJIFILM"

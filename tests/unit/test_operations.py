@@ -134,7 +134,7 @@ class TestProcessImageAllFields:
 
     def test_fujifilmexif_creative_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
-        exif = image.recipe
+        exif = image.fujifilm_exif
 
         assert exif.film_simulation == "Classic Negative"
         assert exif.dynamic_range == "Standard"
@@ -161,7 +161,7 @@ class TestProcessImageAllFields:
 
     def test_fujifilmexif_autofocus_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
-        exif = image.recipe
+        exif = image.fujifilm_exif
 
         assert exif.af_mode == "Zone"
         assert exif.focus_pixel == "3557 1645"
@@ -179,7 +179,7 @@ class TestProcessImageAllFields:
 
     def test_fujifilmexif_drive_and_misc_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
-        exif = image.recipe
+        exif = image.fujifilm_exif
 
         assert exif.slow_sync == "Off"
         assert exif.auto_bracketing == "Off"
@@ -189,7 +189,7 @@ class TestProcessImageAllFields:
 
     def test_fujifilmexif_shot_metadata_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
-        exif = image.recipe
+        exif = image.fujifilm_exif
 
         assert exif.sequence_number == "0"
         assert exif.exposure_count == "1"
@@ -199,7 +199,7 @@ class TestProcessImageAllFields:
 
     def test_fujifilmexif_warning_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
-        exif = image.recipe
+        exif = image.fujifilm_exif
 
         assert exif.blur_warning == "None"
         assert exif.focus_warning == "Good"
@@ -207,7 +207,7 @@ class TestProcessImageAllFields:
 
     def test_fujifilmexif_lens_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
-        exif = image.recipe
+        exif = image.fujifilm_exif
 
         assert exif.min_focal_length == "16"
         assert exif.max_focal_length == "80"
@@ -216,7 +216,7 @@ class TestProcessImageAllFields:
 
     def test_fujifilmexif_hardware_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
-        exif = image.recipe
+        exif = image.fujifilm_exif
 
         assert exif.version == "0130"
         assert exif.internal_serial_number == "FF02B6275695     Y56201 2020:12:02 C6B310316B40"
@@ -225,7 +225,7 @@ class TestProcessImageAllFields:
 
     def test_fujifilmexif_face_detection_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
-        exif = image.recipe
+        exif = image.fujifilm_exif
 
         assert exif.faces_detected == "1"
         assert exif.num_face_elements == "1"
@@ -237,7 +237,7 @@ class TestProcessImageAllFields:
     def test_fujifilmexif_persisted_to_database(self, tmp_path):
         image = self._run(tmp_path)
 
-        exif_from_db = FujifilmExif.objects.get(pk=image.recipe.pk)
+        exif_from_db = FujifilmExif.objects.get(pk=image.fujifilm_exif.pk)
         assert exif_from_db.film_simulation == "Classic Negative"
         assert exif_from_db.af_mode == "Zone"
         assert exif_from_db.faces_detected == "1"

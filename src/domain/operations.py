@@ -1,9 +1,16 @@
 import dataclasses
 import os
 
-from src.data.models import FujifilmExif, Image, RECIPE_FIELDS
+from src.data.models import FujifilmExif, FujifilmRecipe, Image, RECIPE_FIELDS
 from src.domain import events
-from src.domain.queries import parse_exif_date, read_image_exif
+from src.domain.queries import exif_to_recipe, parse_exif_date, read_image_exif
+
+
+def _parse_numeric(s: str) -> int | None:
+    """Convert a signed numeric string like '+4', '-1', '0' to int, or None for 'N/A'."""
+    if s == "N/A":
+        return None
+    return round(float(s))
 
 
 class NoFilmSimulationError(Exception):
@@ -39,9 +46,38 @@ def process_image(image_path: str) -> Image:
     recipe_fields = {field: exif_fields.pop(field) for field in RECIPE_FIELDS}
 
     fujifilm_exif, _ = FujifilmExif.objects.get_or_create(**recipe_fields)
+
+    recipe_data = exif_to_recipe(metadata)
+    fujifilm_recipe, _ = FujifilmRecipe.objects.get_or_create(
+        film_simulation=recipe_data.film_simulation,
+        dynamic_range=recipe_data.dynamic_range,
+        d_range_priority=recipe_data.d_range_priority,
+        grain_roughness=recipe_data.grain_roughness,
+        grain_size=recipe_data.grain_size,
+        color_chrome_effect=recipe_data.color_chrome_effect,
+        color_chrome_fx_blue=recipe_data.color_chrome_fx_blue,
+        white_balance=recipe_data.white_balance,
+        white_balance_red=recipe_data.white_balance_red,
+        white_balance_blue=recipe_data.white_balance_blue,
+        highlight=_parse_numeric(recipe_data.highlight),
+        shadow=_parse_numeric(recipe_data.shadow),
+        color=_parse_numeric(recipe_data.color),
+        sharpness=_parse_numeric(recipe_data.sharpness),
+        high_iso_nr=_parse_numeric(recipe_data.high_iso_nr),
+        clarity=_parse_numeric(recipe_data.clarity),
+        monochromatic_color_warm_cool=_parse_numeric(recipe_data.monochromatic_color_warm_cool),
+        monochromatic_color_magenta_green=_parse_numeric(recipe_data.monochromatic_color_magenta_green),
+    )
+
     image, created = Image.objects.update_or_create(
         filepath=image_path,
-        defaults={"filename": filename, "date_taken": date_taken, "recipe": fujifilm_exif, **exif_fields},
+        defaults={
+            "filename": filename,
+            "date_taken": date_taken,
+            "fujifilm_exif": fujifilm_exif,
+            "fujifilm_recipe": fujifilm_recipe,
+            **exif_fields,
+        },
     )
 
     event_params = {

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from src.data.models import Image
+from src.data.models import FujifilmRecipe, Image
 from src.domain import events
 from src.domain.operations import process_image
 
@@ -35,8 +35,8 @@ class TestProcessImagePersistence:
         assert image.exposure_compensation == "+0.33"
         assert image.date_taken == datetime(2025, 12, 31, 12, 23, 57, tzinfo=timezone(timedelta(hours=11)))
 
-        assert image.recipe is not None
-        exif = image.recipe
+        assert image.fujifilm_exif is not None
+        exif = image.fujifilm_exif
 
         # Creative / recipe fields
         assert exif.film_simulation == "Classic Negative"
@@ -101,6 +101,23 @@ class TestProcessImagePersistence:
         # Face detection fields
         assert exif.faces_detected == "0"
         assert exif.num_face_elements == "0"
+
+        # FujifilmRecipe is created and linked
+        assert image.fujifilm_recipe is not None
+        recipe = image.fujifilm_recipe
+        assert isinstance(recipe, FujifilmRecipe)
+        assert recipe.film_simulation == "Classic Negative"
+        assert recipe.grain_roughness == "Off"
+        assert recipe.grain_size == "Off"
+        assert recipe.color_chrome_effect == "Off"
+        assert recipe.color_chrome_fx_blue == "Strong"
+        assert recipe.white_balance == "Auto"
+        assert recipe.white_balance_red == 3
+        assert recipe.white_balance_blue == -5
+        assert recipe.high_iso_nr == -4
+        assert recipe.clarity == 0
+        # Only one FujifilmRecipe record exists
+        assert FujifilmRecipe.objects.count() == 1
 
         # Assert event was logged
         created_events = [e for e in captured_logs if e.get("event_type") == events.RECIPE_IMAGE_CREATED]

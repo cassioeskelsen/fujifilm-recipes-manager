@@ -154,6 +154,31 @@ class FujifilmExif(models.Model):
         return self.film_simulation or "Unknown"
 
 
+class FujifilmRecipe(models.Model):
+    name = models.CharField(max_length=255, blank=True, default="")
+    film_simulation = models.CharField(max_length=100)
+    dynamic_range = models.CharField(max_length=100)
+    d_range_priority = models.CharField(max_length=50, default="Off")
+    grain_roughness = models.CharField(max_length=100)
+    grain_size = models.CharField(max_length=100)
+    color_chrome_effect = models.CharField(max_length=100)
+    color_chrome_fx_blue = models.CharField(max_length=100)
+    white_balance = models.CharField(max_length=100)
+    white_balance_red = models.IntegerField()
+    white_balance_blue = models.IntegerField()
+    highlight = models.IntegerField(null=True, blank=True)
+    shadow = models.IntegerField(null=True, blank=True)
+    color = models.IntegerField(null=True, blank=True)
+    sharpness = models.IntegerField(null=True, blank=True)
+    high_iso_nr = models.IntegerField(null=True, blank=True)
+    clarity = models.IntegerField(null=True, blank=True)
+    monochromatic_color_warm_cool = models.IntegerField(null=True, blank=True)
+    monochromatic_color_magenta_green = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Image(models.Model):
     filename = models.CharField(max_length=255)
     filepath = models.CharField(max_length=1024, unique=True)
@@ -182,16 +207,20 @@ class Image(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
-    recipe = models.ForeignKey(
+    fujifilm_exif = models.ForeignKey(
         FujifilmExif,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="images",
     )
-
-    class Meta:
-        ordering = ["-created_at"]
+    fujifilm_recipe = models.ForeignKey(
+        FujifilmRecipe,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="images",
+    )
 
     def __str__(self):
         return self.filename
