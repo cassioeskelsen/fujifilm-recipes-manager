@@ -5,7 +5,7 @@ from src.domain import events, operations
 
 
 @shared_task(name="domain.process_image", bind=True, queue=settings.PROCESS_IMAGE_QUEUE)
-def process_image_task(self, image_path: str) -> str:
+def process_image_task(self, *, image_path: str, **kwargs) -> str:
     """Celery task that processes a single image and stores its recipe in DB."""
     events.publish_event(
         event_type=events.TASK_IMAGE_STARTED,

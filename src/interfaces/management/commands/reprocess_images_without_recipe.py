@@ -13,6 +13,6 @@ class Command(BaseCommand):
         self.stdout.write(f"Found {total} image(s) without a recipe.")
 
         for image in images:
-            process_image_task.delay(image.filepath)
+            process_image_task.apply_async(kwargs={"image_path": image.filepath})
 
         self.stdout.write(self.style.SUCCESS(f"Enqueued {total} image(s) for reprocessing."))
