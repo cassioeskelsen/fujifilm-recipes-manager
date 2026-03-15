@@ -148,6 +148,8 @@ class FujifilmExif(models.Model):
     face_element_types = models.CharField(max_length=200, blank=True, default="")
     face_positions = models.CharField(max_length=500, blank=True, default="")
 
+    # Factories
+
     @classmethod
     def get_or_create(cls, **fields) -> "FujifilmExif":
         obj, _ = cls.objects.get_or_create(**fields)  # type: ignore[attr-defined]
@@ -156,6 +158,8 @@ class FujifilmExif(models.Model):
     @classmethod
     def create(cls, **fields) -> "FujifilmExif":
         return cls.objects.create(**fields)  # type: ignore[attr-defined]
+
+    # Properties
 
     def __str__(self):
         if self.name:
@@ -184,10 +188,14 @@ class FujifilmRecipe(models.Model):
     monochromatic_color_warm_cool = models.IntegerField(null=True, blank=True)
     monochromatic_color_magenta_green = models.IntegerField(null=True, blank=True)
 
+    # Factories
+
     @classmethod
     def get_or_create(cls, **fields) -> "FujifilmRecipe":
         obj, _ = cls.objects.get_or_create(**fields)  # type: ignore[attr-defined]
         return obj
+
+    # Properties
 
     def __str__(self):
         return self.name
@@ -239,6 +247,8 @@ class Image(models.Model):
     is_favorite = models.BooleanField(default=False)
     in_album = models.BooleanField(default=False)
 
+    # Factories
+
     @classmethod
     def create(cls, **fields) -> "Image":
         return cls.objects.create(**fields)  # type: ignore[attr-defined]
@@ -247,6 +257,8 @@ class Image(models.Model):
     def update_or_create(cls, *, filepath: str, **defaults) -> tuple["Image", bool]:
         return cls.objects.update_or_create(filepath=filepath, defaults=defaults)  # type: ignore[attr-defined]
 
+    # Mutators
+
     def set_as_favorite(self):
         self.is_favorite = True
         self.save()
@@ -254,6 +266,8 @@ class Image(models.Model):
     def set_as_in_album(self):
         self.in_album = True
         self.save()
+
+    # Properties
 
     def __str__(self):
         return self.filename
