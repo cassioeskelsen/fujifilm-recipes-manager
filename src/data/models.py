@@ -203,7 +203,7 @@ class Image(models.Model):
     exposure_compensation = models.CharField(max_length=50, blank=True, default="")
 
     # Date
-    date_taken = models.DateTimeField(null=True, blank=True)
+    taken_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -225,11 +225,11 @@ class Image(models.Model):
     is_favorite = models.BooleanField(default=False)
     in_album = models.BooleanField(default=False)
 
-    def mark_as_favorite(self):
+    def set_as_favorite(self):
         self.is_favorite = True
         self.save()
 
-    def mark_as_in_album(self):
+    def set_as_in_album(self):
         self.in_album = True
         self.save()
 

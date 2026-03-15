@@ -27,8 +27,8 @@ class TestFindImageForPath:
             find_image_for_path(FIXTURE_IMAGE)
 
     def test_raises_ambiguous_image_match_when_multiple_records(self):
-        Image.objects.create(filename="XS107114.JPG", filepath="/a/XS107114.JPG", date_taken=FIXTURE_DATE_UTC)
-        Image.objects.create(filename="XS107114.JPG", filepath="/b/XS107114.JPG", date_taken=FIXTURE_DATE_UTC)
+        Image.objects.create(filename="XS107114.JPG", filepath="/a/XS107114.JPG", taken_at=FIXTURE_DATE_UTC)
+        Image.objects.create(filename="XS107114.JPG", filepath="/b/XS107114.JPG", taken_at=FIXTURE_DATE_UTC)
 
         with pytest.raises(AmbiguousImageMatch):
             find_image_for_path(FIXTURE_IMAGE)
@@ -39,8 +39,8 @@ class TestFindImageForPath:
         # Strategy 3 (_by_date_film_and_wb): 1 match — film_simulation differs.
         exif_a = FujifilmExif.objects.create(image_count="18069", film_simulation="Classic Negative", white_balance_fine_tune="Red +3, Blue -5")
         exif_b = FujifilmExif.objects.create(image_count="18069", film_simulation="Classic Chrome", white_balance_fine_tune="Red +0, Blue +0")
-        image_a = Image.objects.create(filename="BURST001.JPG", filepath="/a/BURST001.JPG", date_taken=FIXTURE_DATE_UTC, fujifilm_exif=exif_a)
-        Image.objects.create(filename="BURST002.JPG", filepath="/b/BURST002.JPG", date_taken=FIXTURE_DATE_UTC, fujifilm_exif=exif_b)
+        image_a = Image.objects.create(filename="BURST001.JPG", filepath="/a/BURST001.JPG", taken_at=FIXTURE_DATE_UTC, fujifilm_exif=exif_a)
+        Image.objects.create(filename="BURST002.JPG", filepath="/b/BURST002.JPG", taken_at=FIXTURE_DATE_UTC, fujifilm_exif=exif_b)
 
         # Fixture image has film_simulation="Classic Negative" and matching WB fine tune
         result = find_image_for_path(FIXTURE_IMAGE)
@@ -52,8 +52,8 @@ class TestFindImageForPath:
         # The fixture image has image_count="18069".
         exif_a = FujifilmExif.objects.create(image_count="18069")
         exif_b = FujifilmExif.objects.create(image_count="18070")
-        image_a = Image.objects.create(filename="BURST001.JPG", filepath="/a/BURST001.JPG", date_taken=FIXTURE_DATE_UTC, fujifilm_exif=exif_a)
-        Image.objects.create(filename="BURST002.JPG", filepath="/b/BURST002.JPG", date_taken=FIXTURE_DATE_UTC, fujifilm_exif=exif_b)
+        image_a = Image.objects.create(filename="BURST001.JPG", filepath="/a/BURST001.JPG", taken_at=FIXTURE_DATE_UTC, fujifilm_exif=exif_a)
+        Image.objects.create(filename="BURST002.JPG", filepath="/b/BURST002.JPG", taken_at=FIXTURE_DATE_UTC, fujifilm_exif=exif_b)
 
         result = find_image_for_path(FIXTURE_IMAGE)
 

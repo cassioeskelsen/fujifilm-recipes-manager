@@ -240,35 +240,35 @@ def exif_to_recipe(exif: ImageExifData) -> FujifilmRecipeData:
 
 
 def _by_filename_and_date(exif: ImageExifData, filename: str, date_taken: datetime | None) -> Image:
-    return Image.objects.get(filename=filename, date_taken=date_taken)
+    return Image.objects.get(filename=filename, taken_at=date_taken)
 
 
 def _by_date_film_and_wb(exif: ImageExifData, filename: str, date_taken: datetime | None) -> Image:
     return Image.objects.get(
-        date_taken=date_taken,
+        taken_at=date_taken,
         fujifilm_exif__film_simulation=exif.film_simulation,
         fujifilm_exif__white_balance_fine_tune=exif.white_balance_fine_tune,
     )
 
 
 def _by_date_and_image_count(exif: ImageExifData, filename: str, date_taken: datetime | None) -> Image:
-    return Image.objects.get(date_taken=date_taken, fujifilm_exif__image_count=exif.image_count)
+    return Image.objects.get(taken_at=date_taken, fujifilm_exif__image_count=exif.image_count)
 
 
 def _by_date_and_film_simulation(exif: ImageExifData, filename: str, date_taken: datetime | None) -> Image:
-    return Image.objects.get(date_taken=date_taken, fujifilm_exif__film_simulation=exif.film_simulation)
+    return Image.objects.get(taken_at=date_taken, fujifilm_exif__film_simulation=exif.film_simulation)
 
 
 def _by_date_only(exif: ImageExifData, filename: str, date_taken: datetime | None) -> Image:
-    return Image.objects.get(date_taken=date_taken)
+    return Image.objects.get(taken_at=date_taken)
 
 
 _LOOKUP_STRATEGIES = [
     _by_filename_and_date,
     _by_date_and_image_count,
     _by_date_film_and_wb,
-    _by_date_and_film_simulation,
-    _by_date_only,
+    # _by_date_and_film_simulation,
+    # _by_date_only,
 ]
 
 

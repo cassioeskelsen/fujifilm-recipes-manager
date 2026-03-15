@@ -76,7 +76,7 @@ def process_image(image_path: str) -> Image:
         filepath=image_path,
         defaults={
             "filename": filename,
-            "date_taken": date_taken,
+            "taken_at": date_taken,
             "fujifilm_exif": fujifilm_exif,
             "fujifilm_recipe": fujifilm_recipe,
             **exif_fields,
@@ -87,7 +87,7 @@ def process_image(image_path: str) -> Image:
         "recipe_id": image.pk,
         "filename": filename,
         "film_simulation": fujifilm_exif.film_simulation,
-        "date_taken": image.date_taken.isoformat() if image.date_taken else "",
+        "taken_at": image.taken_at.isoformat() if image.taken_at else "",
     }
     events.publish_event(
         event_type=events.RECIPE_IMAGE_CREATED if created else events.RECIPE_IMAGE_UPDATED,

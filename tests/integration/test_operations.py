@@ -35,7 +35,7 @@ class TestProcessImagePersistence:
         assert image.drive_mode == "Single"
         assert image.iso == "640"
         assert image.exposure_compensation == "+0.33"
-        assert image.date_taken == datetime(2025, 12, 31, 12, 23, 57, tzinfo=timezone(timedelta(hours=11)))
+        assert image.taken_at == datetime(2025, 12, 31, 12, 23, 57, tzinfo=timezone(timedelta(hours=11)))
 
         assert image.fujifilm_exif is not None
         exif = image.fujifilm_exif
@@ -126,7 +126,7 @@ class TestProcessImagePersistence:
         assert len(created_events) == 1
         assert created_events[0]["params"]["filename"] == "XS107114.JPG"
         assert created_events[0]["params"]["film_simulation"] == "Classic Negative"
-        assert created_events[0]["params"]["date_taken"] == "2025-12-31T12:23:57+11:00"
+        assert created_events[0]["params"]["taken_at"] == "2025-12-31T12:23:57+11:00"
         assert created_events[0]["params"]["recipe_id"] == image.pk
 
     def test_updates_existing_record(self, captured_logs):
@@ -145,7 +145,7 @@ class TestProcessImagePersistence:
         assert updated_events[0]["params"]["recipe_id"] == image2.pk
         assert updated_events[0]["params"]["filename"] == "XS107114.JPG"
         assert updated_events[0]["params"]["film_simulation"] == "Classic Negative"
-        assert updated_events[0]["params"]["date_taken"] == "2025-12-31T12:23:57+11:00"
+        assert updated_events[0]["params"]["taken_at"] == "2025-12-31T12:23:57+11:00"
 
 
 @pytest.mark.django_db

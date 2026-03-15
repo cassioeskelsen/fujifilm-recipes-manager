@@ -40,7 +40,7 @@ class TestProcessImageEndToEnd:
         assert image.exposure_compensation == "+0.33"
 
         # Date
-        assert image.date_taken == datetime(2026, 3, 9, 9, 29, 32, tzinfo=timezone(timedelta(hours=11)))
+        assert image.taken_at == datetime(2026, 3, 9, 9, 29, 32, tzinfo=timezone(timedelta(hours=11)))
 
         # Recipe
         assert image.fujifilm_exif is not None

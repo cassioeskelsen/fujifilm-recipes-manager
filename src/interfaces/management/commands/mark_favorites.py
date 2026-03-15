@@ -29,7 +29,7 @@ class Command(BaseCommand):
             except ImageNotFound:
                 try:
                     image = process_image(path)
-                    image.mark_as_favorite()
+                    image.set_as_favorite()
                     self.stdout.write(f"Added and marked as favorite: {filename}")
                     marked += 1
                 except NoFilmSimulationError:
@@ -39,7 +39,7 @@ class Command(BaseCommand):
             except AmbiguousImageMatch:
                 try:
                     image = process_image(path)
-                    image.mark_as_favorite()
+                    image.set_as_favorite()
                     self.stdout.write(f"Added and marked as favorite: {filename}")
                     marked += 1
                 except NoFilmSimulationError:
@@ -47,7 +47,7 @@ class Command(BaseCommand):
                     not_found += 1
                 continue
 
-            image.mark_as_favorite()
+            image.set_as_favorite()
             self.stdout.write(f"Marked as favorite: {filename}")
             marked += 1
 
