@@ -1,9 +1,10 @@
 from celery import shared_task
+from django.conf import settings
 
 from src.domain import events, operations
 
 
-@shared_task(name="domain.process_image", bind=True)
+@shared_task(name="domain.process_image", bind=True, queue=settings.PROCESS_IMAGE_QUEUE)
 def process_image_task(self, image_path: str) -> str:
     """Celery task that processes a single image and stores its recipe in DB."""
     events.publish_event(
