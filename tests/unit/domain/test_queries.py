@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.domain.queries import _normalize_wb_fine_tune, collect_image_paths, read_image_exif
+from src.domain.images.queries import _normalize_wb_fine_tune, collect_image_paths, read_image_exif
 
 SAMPLE_EXIFTOOL_OUTPUT = """\
 [ExifTool]      ExifTool Version Number         : 12.76
@@ -94,7 +94,7 @@ class TestReadImageExif:
     def test_parses_relevant_fields(self, tmp_path):
         image_path = str(tmp_path / "test.jpg")
 
-        with patch("src.domain.queries.subprocess.run") as mock_run:
+        with patch("src.domain.images.queries.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["exiftool", image_path],
                 returncode=0,
@@ -200,7 +200,7 @@ class TestReadImageExif:
     def test_prefers_fujifilm_group_for_sharpness(self, tmp_path):
         image_path = str(tmp_path / "test.jpg")
 
-        with patch("src.domain.queries.subprocess.run") as mock_run:
+        with patch("src.domain.images.queries.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["exiftool", image_path],
                 returncode=0,
@@ -215,7 +215,7 @@ class TestReadImageExif:
     def test_prefers_composite_group_for_date_taken(self, tmp_path):
         image_path = str(tmp_path / "test.jpg")
 
-        with patch("src.domain.queries.subprocess.run") as mock_run:
+        with patch("src.domain.images.queries.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["exiftool", image_path],
                 returncode=0,
@@ -230,7 +230,7 @@ class TestReadImageExif:
     def test_ignores_irrelevant_fields(self, tmp_path):
         image_path = str(tmp_path / "test.jpg")
 
-        with patch("src.domain.queries.subprocess.run") as mock_run:
+        with patch("src.domain.images.queries.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["exiftool", image_path],
                 returncode=0,
@@ -245,7 +245,7 @@ class TestReadImageExif:
     def test_raises_on_exiftool_failure(self, tmp_path):
         image_path = str(tmp_path / "test.jpg")
 
-        with patch("src.domain.queries.subprocess.run") as mock_run:
+        with patch("src.domain.images.queries.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["exiftool", image_path],
                 returncode=1,

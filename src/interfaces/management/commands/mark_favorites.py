@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from src.domain import operations, queries
+from src.application.usecases.images.mark_image_as_favorite import mark_image_as_favorite
+from src.domain.images import operations, queries
 
 
 class Command(BaseCommand):
@@ -22,7 +23,7 @@ class Command(BaseCommand):
         for path in paths:
             filename = path.split("/")[-1]
             try:
-                operations.mark_image_as_favorite(image_path=path)
+                mark_image_as_favorite(image_path=path)
                 self.stdout.write(f"Marked as favorite: {filename}")
                 marked += 1
             except operations.NoFilmSimulationError:

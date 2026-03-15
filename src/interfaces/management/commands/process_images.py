@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from src.domain import events
-from src.domain.queries import collect_image_paths
+from src.domain.images import events, queries
 from src.interfaces.tasks import process_image_task
 
 
@@ -15,7 +14,7 @@ class Command(BaseCommand):
         folder = options["folder"]
         self.stdout.write(f"Scanning {folder} for JPG files…")
 
-        paths = collect_image_paths(folder=folder)
+        paths = queries.collect_image_paths(folder=folder)
         total = len(paths)
         self.stdout.write(f"Found {total} images. Enqueuing tasks…")
 

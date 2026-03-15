@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from src.data.models import Image
-from src.domain.operations import process_image
+from src.domain.images.operations import process_image
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "images"
 SAMPLE_IMAGE = str(FIXTURES_DIR / "XS107508.jpg")

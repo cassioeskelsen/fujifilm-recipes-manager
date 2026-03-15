@@ -2,7 +2,7 @@ import attrs
 import os
 
 from src.data.models import FujifilmExif, FujifilmRecipe, Image, RECIPE_FIELDS
-from src.domain import events, queries
+from src.domain.images import events, queries
 
 
 def _parse_numeric(*, s: str) -> int | None:
@@ -90,54 +90,4 @@ def process_image(*, image_path: str) -> Image:
         event_type=events.RECIPE_IMAGE_CREATED if created else events.RECIPE_IMAGE_UPDATED,
         params=event_params,
     )
-    return image
-
-
-def process_images_in_folder(*, folder: str) -> tuple[int, list[str]]:
-    """Process all JPG images in *folder*, skipping those without Fujifilm metadata.
-
-    Returns:
-        A tuple of (total_found, skipped_paths).
-    """
-    paths = queries.collect_image_paths(folder=folder)
-    skipped = []
-    for path in paths:
-        try:
-            process_image(image_path=path)
-        except NoFilmSimulationError:
-            skipped.append(path)
-    return len(paths), skipped
-
-
-def reprocess_kelvin_images() -> tuple[int, list[str]]:
-    """Reprocess all images whose white balance EXIF value is Kelvin.
-
-    Returns:
-        A tuple of (total_found, skipped_paths).
-    """
-    images = Image.objects.with_kelvin_white_balance().select_related("fujifilm_exif")
-    paths = [image.filepath for image in images]
-    skipped = []
-    for path in paths:
-        try:
-            process_image(image_path=path)
-        except NoFilmSimulationError:
-            skipped.append(path)
-    return len(paths), skipped
-
-
-def mark_image_as_favorite(*, image_path: str) -> Image:
-    """Find or process the Image for *image_path* and mark it as a favourite.
-
-    If the image is not yet in the database, or the match is ambiguous,
-    it is first processed and stored via process_image().
-
-    Raises:
-        NoFilmSimulationError: If the image has no Fujifilm metadata.
-    """
-    try:
-        image = queries.find_image_for_path(image_path=image_path)
-    except (queries.ImageNotFound, queries.AmbiguousImageMatch):
-        image = process_image(image_path=image_path)
-    image.set_as_favorite()
     return image

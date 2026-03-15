@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 from src.data.models import FujifilmExif, Image
-from src.domain.queries import AmbiguousImageMatch, ImageNotFound, find_image_for_path
-from src.domain.operations import process_image
+from src.domain.images.queries import AmbiguousImageMatch, ImageNotFound, find_image_for_path
+from src.domain.images.operations import process_image
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "images"
 FIXTURE_IMAGE = str(FIXTURES_DIR / "XS107114.JPG")

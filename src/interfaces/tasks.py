@@ -1,7 +1,7 @@
 from celery import shared_task
 from django.conf import settings
 
-from src.domain import events, operations
+from src.domain.images import events, operations
 
 
 @shared_task(name="domain.process_image", bind=True, queue=settings.PROCESS_IMAGE_QUEUE)

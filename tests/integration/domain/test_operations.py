@@ -5,9 +5,9 @@ from unittest.mock import patch
 import pytest
 
 from src.data.models import FujifilmRecipe, Image
-from src.domain import events
-from src.domain.dataclasses import ImageExifData
-from src.domain.operations import NoFilmSimulationError, process_image
+from src.domain.images import events
+from src.domain.images.dataclasses import ImageExifData
+from src.domain.images.operations import NoFilmSimulationError, process_image
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent.parent / "fixtures" / "images"
 FIXTURE_IMAGE = str(FIXTURES_DIR / "XS107114.JPG")
@@ -155,7 +155,7 @@ class TestProcessImageNoFilmSimulation:
         NoFilmSimulationError rather than an unhandled KeyError."""
         fujifilm_exif_without_film_sim = ImageExifData(camera_make="FUJIFILM", film_simulation="", color="")
 
-        with patch("src.domain.queries.read_image_exif", return_value=fujifilm_exif_without_film_sim):
+        with patch("src.domain.images.queries.read_image_exif", return_value=fujifilm_exif_without_film_sim):
             with pytest.raises(NoFilmSimulationError):
                 process_image(image_path="any/path.jpg")
 

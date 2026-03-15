@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from src.domain.operations import reprocess_kelvin_images
+from src.application.usecases.images.reprocess_kelvin_images import reprocess_kelvin_images
 
 
 class Command(BaseCommand):

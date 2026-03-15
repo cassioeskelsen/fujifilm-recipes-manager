@@ -7,8 +7,8 @@ from pathlib import Path
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 
 from src.data.models import Image
-from src.domain.dataclasses import FujifilmRecipeData, ImageExifData
-from src.domain import recipe_values
+from src.domain.images.dataclasses import FujifilmRecipeData, ImageExifData
+from src.domain.images import recipe_values
 
 class ImageNotFound(Exception):
     """Raised when no DB record matches the given image file."""

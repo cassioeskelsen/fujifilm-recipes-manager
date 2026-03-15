@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from src.data.models import FujifilmExif, Image
-from src.domain.operations import NoFilmSimulationError, process_image
+from src.domain.images.operations import NoFilmSimulationError, process_image
 
 # Complete exiftool output covering every field mapped in EXIFTOOL_FIELD_MAP,
 # including all 45 new FujiFilm EXIF fields.
@@ -102,7 +102,7 @@ class TestProcessImageAllFields:
         image_path = str(tmp_path / "test.jpg")
         (tmp_path / "test.jpg").write_bytes(b"\xff\xd8\xff\xd9")
 
-        with patch("src.domain.queries.subprocess.run") as mock_run:
+        with patch("src.domain.images.queries.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["exiftool", image_path],
                 returncode=0,
@@ -252,7 +252,7 @@ class TestProcessImageAllFields:
 
         non_fuji_output = "[IFD0]          Make                            : Canon\n"
 
-        with patch("src.domain.queries.subprocess.run") as mock_run:
+        with patch("src.domain.images.queries.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=["exiftool", image_path],
                 returncode=0,

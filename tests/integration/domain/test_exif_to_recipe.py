@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from src.domain.queries import exif_to_recipe, read_image_exif
+from src.domain.images.queries import exif_to_recipe, read_image_exif
 
 FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures" / "recipe"
 

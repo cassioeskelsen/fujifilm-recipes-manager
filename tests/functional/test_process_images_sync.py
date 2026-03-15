@@ -4,7 +4,7 @@ import pytest
 from django.core.management import call_command
 
 from src.data.models import Image
-from src.domain import events
+from src.domain.images import events
 
 FIXTURES_DIR = str(Path(__file__).resolve().parent.parent / "fixtures" / "images")
 

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from src.domain.operations import process_images_in_folder
+from src.application.usecases.images.process_images_in_folder import process_images_in_folder
 
 
 class Command(BaseCommand):
