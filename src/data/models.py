@@ -162,9 +162,8 @@ class FujifilmExif(models.Model):
     # Properties
 
     def __str__(self):
-        if self.name:
-            return self.name
-        return self.film_simulation or "Unknown"
+        label = self.name or self.film_simulation or "Unknown"
+        return f"#{self.id} {label}"  # type: ignore[attr-defined]
 
 
 class FujifilmRecipe(models.Model):
@@ -198,7 +197,7 @@ class FujifilmRecipe(models.Model):
     # Properties
 
     def __str__(self):
-        return self.name
+        return f"#{self.id} {self.name}"  # type: ignore[attr-defined]
 
 
 class Image(models.Model):
@@ -270,4 +269,4 @@ class Image(models.Model):
     # Properties
 
     def __str__(self):
-        return self.filename
+        return f"#{self.id} {self.filename}"  # type: ignore[attr-defined]
