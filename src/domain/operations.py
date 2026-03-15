@@ -45,13 +45,13 @@ def process_image(image_path: str) -> Image:
     exif_fields.pop("date_taken")
     recipe_fields = {field: exif_fields.pop(field) for field in RECIPE_FIELDS}
 
-    fujifilm_exif, _ = FujifilmExif.objects.get_or_create(**recipe_fields)
+    fujifilm_exif = FujifilmExif.get_or_create(**recipe_fields)
 
     try:
         recipe_data = exif_to_recipe(metadata)
     except KeyError:
         raise NoFilmSimulationError(image_path)
-    fujifilm_recipe, _ = FujifilmRecipe.objects.get_or_create(
+    fujifilm_recipe = FujifilmRecipe.get_or_create(
         film_simulation=recipe_data.film_simulation,
         dynamic_range=recipe_data.dynamic_range,
         d_range_priority=recipe_data.d_range_priority,
@@ -72,15 +72,13 @@ def process_image(image_path: str) -> Image:
         monochromatic_color_magenta_green=_parse_numeric(recipe_data.monochromatic_color_magenta_green),
     )
 
-    image, created = Image.objects.update_or_create(
+    image, created = Image.update_or_create(
         filepath=image_path,
-        defaults={
-            "filename": filename,
-            "taken_at": date_taken,
-            "fujifilm_exif": fujifilm_exif,
-            "fujifilm_recipe": fujifilm_recipe,
-            **exif_fields,
-        },
+        filename=filename,
+        taken_at=date_taken,
+        fujifilm_exif=fujifilm_exif,
+        fujifilm_recipe=fujifilm_recipe,
+        **exif_fields,
     )
 
     event_params = {
