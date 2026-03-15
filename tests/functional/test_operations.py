@@ -15,7 +15,7 @@ class TestProcessImageEndToEnd:
     """End-to-end tests that run exiftool against a real Fujifilm image."""
 
     def test_extracts_and_stores_recipe(self):
-        image = process_image(SAMPLE_IMAGE)
+        image = process_image(image_path=SAMPLE_IMAGE)
 
         assert image.pk is not None
         assert image.filename == "XS107508.jpg"
@@ -62,14 +62,14 @@ class TestProcessImageEndToEnd:
         assert image.fujifilm_exif.grain_effect_size == "Off"
 
     def test_is_idempotent(self):
-        image1 = process_image(SAMPLE_IMAGE)
-        image2 = process_image(SAMPLE_IMAGE)
+        image1 = process_image(image_path=SAMPLE_IMAGE)
+        image2 = process_image(image_path=SAMPLE_IMAGE)
 
         assert image1.pk == image2.pk
         assert Image.objects.filter(filepath=SAMPLE_IMAGE).count() == 1
 
     def test_persists_to_database(self):
-        process_image(SAMPLE_IMAGE)
+        process_image(image_path=SAMPLE_IMAGE)
 
         from_db = Image.objects.get(filepath=SAMPLE_IMAGE)
         assert from_db.fujifilm_exif.film_simulation == "Classic Negative"

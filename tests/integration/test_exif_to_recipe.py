@@ -17,7 +17,7 @@ FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "recipe"
 
 def _recipe(filename: str):
     """Read EXIF from a fixture file and convert to a recipe."""
-    return exif_to_recipe(read_image_exif(str(FIXTURES / filename)))
+    return exif_to_recipe(exif=read_image_exif(image_path=str(FIXTURES / filename)))
 
 
 # ---------------------------------------------------------------------------

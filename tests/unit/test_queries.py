@@ -101,7 +101,7 @@ class TestReadImageExif:
                 stdout=SAMPLE_EXIFTOOL_OUTPUT,
                 stderr="",
             )
-            metadata = read_image_exif(image_path)
+            metadata = read_image_exif(image_path=image_path)
 
         # Standard fields
         assert metadata.camera_make == "FUJIFILM"
@@ -207,7 +207,7 @@ class TestReadImageExif:
                 stdout=SAMPLE_EXIFTOOL_OUTPUT,
                 stderr="",
             )
-            metadata = read_image_exif(image_path)
+            metadata = read_image_exif(image_path=image_path)
 
         # ExifIFD has "Soft" but FujiFilm group should win
         assert metadata.sharpness == "-1 (medium soft)"
@@ -222,7 +222,7 @@ class TestReadImageExif:
                 stdout=SAMPLE_EXIFTOOL_OUTPUT,
                 stderr="",
             )
-            metadata = read_image_exif(image_path)
+            metadata = read_image_exif(image_path=image_path)
 
         # ExifIFD has no timezone but Composite has +11:00 — Composite should win
         assert metadata.date_taken == "2025:12:31 12:23:57+11:00"
@@ -237,7 +237,7 @@ class TestReadImageExif:
                 stdout="ExifTool Version Number         : 12.76\nFile Name                       : test.jpg\n",
                 stderr="",
             )
-            metadata = read_image_exif(image_path)
+            metadata = read_image_exif(image_path=image_path)
 
         assert not hasattr(metadata, "exiftool_version_number")
         assert not hasattr(metadata, "file_name")
@@ -253,7 +253,7 @@ class TestReadImageExif:
                 stderr="File not found",
             )
             with pytest.raises(RuntimeError, match="exiftool failed"):
-                read_image_exif(image_path)
+                read_image_exif(image_path=image_path)
 
 
 class TestNormaliseWbFineTune:
@@ -274,7 +274,7 @@ class TestCollectImagePaths:
         (tmp_path / "photo3.jpeg").write_bytes(b"\xff\xd8")
         (tmp_path / "document.pdf").write_bytes(b"%PDF")
 
-        paths = collect_image_paths(str(tmp_path))
+        paths = collect_image_paths(folder=str(tmp_path))
 
         filenames = [os.path.basename(p) for p in paths]
         assert "photo1.jpg" in filenames
@@ -287,7 +287,7 @@ class TestCollectImagePaths:
         (tmp_path / "a.jpg").write_bytes(b"\xff\xd8")
         (tmp_path / "b.jpg").write_bytes(b"\xff\xd8")
 
-        paths = collect_image_paths(str(tmp_path))
+        paths = collect_image_paths(folder=str(tmp_path))
 
         filenames = [os.path.basename(p) for p in paths]
         assert filenames == sorted(filenames)
@@ -298,7 +298,7 @@ class TestCollectImagePaths:
         (tmp_path / "top.jpg").write_bytes(b"\xff\xd8")
         (sub / "nested.jpg").write_bytes(b"\xff\xd8")
 
-        paths = collect_image_paths(str(tmp_path))
+        paths = collect_image_paths(folder=str(tmp_path))
 
         filenames = [os.path.basename(p) for p in paths]
         assert "top.jpg" in filenames
@@ -307,15 +307,15 @@ class TestCollectImagePaths:
     def test_returns_absolute_paths(self, tmp_path):
         (tmp_path / "photo.jpg").write_bytes(b"\xff\xd8")
 
-        paths = collect_image_paths(str(tmp_path))
+        paths = collect_image_paths(folder=str(tmp_path))
 
         for p in paths:
             assert os.path.isabs(p)
 
     def test_empty_folder_returns_empty_list(self, tmp_path):
-        paths = collect_image_paths(str(tmp_path))
+        paths = collect_image_paths(folder=str(tmp_path))
         assert paths == []
 
     def test_nonexistent_folder_raises(self):
         with pytest.raises(FileNotFoundError):
-            collect_image_paths("/nonexistent/folder")
+            collect_image_paths(folder="/nonexistent/folder")

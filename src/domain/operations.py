@@ -21,7 +21,7 @@ class NoFilmSimulationError(Exception):
 
 
 
-def process_image(image_path: str) -> Image:
+def process_image(*, image_path: str) -> Image:
     """Read EXIF data from *image_path* and persist it to the database.
 
     If a record for the same filepath already exists it is updated in-place.
@@ -31,7 +31,7 @@ def process_image(image_path: str) -> Image:
     Raises:
         NoFilmSimulationError: If the image has no film simulation EXIF data.
     """
-    metadata = queries.read_image_exif(image_path)
+    metadata = queries.read_image_exif(image_path=image_path)
 
     if metadata.camera_make.upper() != "FUJIFILM":
         raise NoFilmSimulationError(image_path)
@@ -47,7 +47,7 @@ def process_image(image_path: str) -> Image:
     fujifilm_exif = FujifilmExif.get_or_create(**recipe_fields)
 
     try:
-        recipe_data = queries.exif_to_recipe(metadata)
+        recipe_data = queries.exif_to_recipe(exif=metadata)
     except KeyError:
         raise NoFilmSimulationError(image_path)
     fujifilm_recipe = FujifilmRecipe.get_or_create(
@@ -93,17 +93,17 @@ def process_image(image_path: str) -> Image:
     return image
 
 
-def process_images_in_folder(folder: str) -> tuple[int, list[str]]:
+def process_images_in_folder(*, folder: str) -> tuple[int, list[str]]:
     """Process all JPG images in *folder*, skipping those without Fujifilm metadata.
 
     Returns:
         A tuple of (total_found, skipped_paths).
     """
-    paths = queries.collect_image_paths(folder)
+    paths = queries.collect_image_paths(folder=folder)
     skipped = []
     for path in paths:
         try:
-            process_image(path)
+            process_image(image_path=path)
         except NoFilmSimulationError:
             skipped.append(path)
     return len(paths), skipped
@@ -120,13 +120,13 @@ def reprocess_kelvin_images() -> tuple[int, list[str]]:
     skipped = []
     for path in paths:
         try:
-            process_image(path)
+            process_image(image_path=path)
         except NoFilmSimulationError:
             skipped.append(path)
     return len(paths), skipped
 
 
-def mark_image_as_favorite(image_path: str) -> Image:
+def mark_image_as_favorite(*, image_path: str) -> Image:
     """Find or process the Image for *image_path* and mark it as a favourite.
 
     If the image is not yet in the database, or the match is ambiguous,
@@ -136,8 +136,8 @@ def mark_image_as_favorite(image_path: str) -> Image:
         NoFilmSimulationError: If the image has no Fujifilm metadata.
     """
     try:
-        image = queries.find_image_for_path(image_path)
+        image = queries.find_image_for_path(image_path=image_path)
     except (queries.ImageNotFound, queries.AmbiguousImageMatch):
-        image = process_image(image_path)
+        image = process_image(image_path=image_path)
     image.set_as_favorite()
     return image

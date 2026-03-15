@@ -16,7 +16,7 @@ class TestReprocessImagesWithoutRecipeCommand:
         settings.CELERY_TASK_ALWAYS_EAGER = True
 
         # Process image so the Image record exists, then clear its recipe
-        image = process_image(SAMPLE_IMAGE)
+        image = process_image(image_path=SAMPLE_IMAGE)
         assert image.fujifilm_recipe is not None
 
         image.fujifilm_recipe = None
@@ -35,7 +35,7 @@ class TestReprocessImagesWithoutRecipeCommand:
 
     def test_skips_images_that_already_have_a_recipe(self, capsys, settings):
         settings.CELERY_TASK_ALWAYS_EAGER = True
-        process_image(SAMPLE_IMAGE)
+        process_image(image_path=SAMPLE_IMAGE)
 
         call_command("reprocess_images_without_recipe")
 

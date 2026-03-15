@@ -15,7 +15,7 @@ class Command(BaseCommand):
         folder = options["folder"]
         self.stdout.write(f"Scanning {folder} for JPG files…")
 
-        paths = collect_image_paths(folder)
+        paths = collect_image_paths(folder=folder)
         total = len(paths)
         self.stdout.write(f"Found {total} images. Enqueuing tasks…")
 

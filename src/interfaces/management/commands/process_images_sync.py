@@ -13,7 +13,7 @@ class Command(BaseCommand):
         folder = options["folder"]
         self.stdout.write(f"Scanning {folder} for JPG files…")
 
-        total, skipped = process_images_in_folder(folder)
+        total, skipped = process_images_in_folder(folder=folder)
 
         for path in skipped:
             self.stderr.write(f"Skipped {path} (no film simulation)")

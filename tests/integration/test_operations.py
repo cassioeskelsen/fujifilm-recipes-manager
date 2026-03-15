@@ -16,7 +16,7 @@ FIXTURE_IMAGE = str(FIXTURES_DIR / "XS107114.JPG")
 @pytest.mark.django_db
 class TestProcessImagePersistence:
     def test_creates_recipe_record(self, captured_logs):
-        image = process_image(FIXTURE_IMAGE)
+        image = process_image(image_path=FIXTURE_IMAGE)
         assert isinstance(image, Image)
         assert image.pk is not None
         assert image.filename == "XS107114.JPG"
@@ -130,8 +130,8 @@ class TestProcessImagePersistence:
         assert created_events[0]["params"]["recipe_id"] == image.pk
 
     def test_updates_existing_record(self, captured_logs):
-        image1 = process_image(FIXTURE_IMAGE)
-        image2 = process_image(FIXTURE_IMAGE)
+        image1 = process_image(image_path=FIXTURE_IMAGE)
+        image2 = process_image(image_path=FIXTURE_IMAGE)
 
         assert image1.pk == image2.pk
         assert Image.objects.count() == 1
@@ -157,6 +157,6 @@ class TestProcessImageNoFilmSimulation:
 
         with patch("src.domain.queries.read_image_exif", return_value=fujifilm_exif_without_film_sim):
             with pytest.raises(NoFilmSimulationError):
-                process_image("any/path.jpg")
+                process_image(image_path="any/path.jpg")
 
         assert Image.objects.count() == 0

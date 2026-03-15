@@ -157,7 +157,7 @@ def _normalize_wb_fine_tune(raw: str) -> str:
     return _WB_FINE_TUNE_RE.sub(_divide, raw)
 
 
-def read_image_exif(image_path: str) -> ImageExifData:
+def read_image_exif(*, image_path: str) -> ImageExifData:
     """Run exiftool on the given image and return a dict of recipe-relevant fields."""
     result = subprocess.run(
         ["exiftool", "-a", "-G1", image_path],
@@ -196,7 +196,7 @@ def read_image_exif(image_path: str) -> ImageExifData:
     return ImageExifData(**metadata)
 
 
-def exif_to_recipe(exif: ImageExifData) -> FujifilmRecipeData:
+def exif_to_recipe(*, exif: ImageExifData) -> FujifilmRecipeData:
     """Convert an ImageExifData instance to a FujifilmRecipeData."""
     film_simulation = recipe_values.film_simulation_from_exif(exif.film_simulation, exif.color).display_name
     d_range_priority = recipe_values.d_range_priority_from_exif(exif.d_range_priority, exif.d_range_priority_auto)
@@ -257,7 +257,7 @@ _LOOKUP_STRATEGIES = [
 ]
 
 
-def find_image_for_path(image_path: str) -> Image:
+def find_image_for_path(*, image_path: str) -> Image:
     """Return the DB Image record that corresponds to the given image file.
 
     Strategies are tried in order; the first one that returns a unique match
@@ -267,7 +267,7 @@ def find_image_for_path(image_path: str) -> Image:
     Raises ImageNotFound if no strategy finds a match.
     Raises AmbiguousImageMatch if a strategy finds more than one match.
     """
-    exif = read_image_exif(image_path)
+    exif = read_image_exif(image_path=image_path)
     filename = Path(image_path).name
     date_taken = parse_exif_date(exif.date_taken) if exif.date_taken else None
 
@@ -286,7 +286,7 @@ def find_image_for_path(image_path: str) -> Image:
     raise ImageNotFound(image_path)
 
 
-def collect_image_paths(folder: str) -> list[str]:
+def collect_image_paths(*, folder: str) -> list[str]:
     """Return absolute paths of all JPG files inside *folder* (recursively)."""
     root = Path(folder)
     if not root.is_dir():

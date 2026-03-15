@@ -13,7 +13,7 @@ class Command(BaseCommand):
         folder = options["folder"]
         self.stdout.write(f"Scanning {folder} for JPG files…")
 
-        paths = queries.collect_image_paths(folder)
+        paths = queries.collect_image_paths(folder=folder)
         self.stdout.write(f"Found {len(paths)} images.")
 
         marked = 0
@@ -22,7 +22,7 @@ class Command(BaseCommand):
         for path in paths:
             filename = path.split("/")[-1]
             try:
-                operations.mark_image_as_favorite(path)
+                operations.mark_image_as_favorite(image_path=path)
                 self.stdout.write(f"Marked as favorite: {filename}")
                 marked += 1
             except operations.NoFilmSimulationError:

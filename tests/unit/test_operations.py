@@ -109,7 +109,7 @@ class TestProcessImageAllFields:
                 stdout=ALL_FIELDS_EXIFTOOL_OUTPUT,
                 stderr="",
             )
-            return process_image(image_path)
+            return process_image(image_path=image_path)
 
     def test_image_standard_fields_stored(self, tmp_path):
         image = self._run(tmp_path)
@@ -260,4 +260,4 @@ class TestProcessImageAllFields:
                 stderr="",
             )
             with pytest.raises(NoFilmSimulationError):
-                process_image(image_path)
+                process_image(image_path=image_path)

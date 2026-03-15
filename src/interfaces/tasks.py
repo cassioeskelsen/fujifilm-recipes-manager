@@ -12,7 +12,7 @@ def process_image_task(self, *, image_path: str, **kwargs) -> str:
         params={"image_path": image_path, "task_id": self.request.id},
     )
     try:
-        recipe = operations.process_image(image_path)
+        recipe = operations.process_image(image_path=image_path)
     except operations.NoFilmSimulationError:
         return f"Skipped {image_path} (no film simulation)"
     events.publish_event(

@@ -16,22 +16,22 @@ FIXTURE_DATE_UTC = datetime(2025, 12, 31, 1, 23, 57, tzinfo=timezone.utc)
 @pytest.mark.django_db
 class TestFindImageForPath:
     def test_returns_matching_image(self):
-        image = process_image(FIXTURE_IMAGE)
+        image = process_image(image_path=FIXTURE_IMAGE)
 
-        result = find_image_for_path(FIXTURE_IMAGE)
+        result = find_image_for_path(image_path=FIXTURE_IMAGE)
 
         assert result.pk == image.pk
 
     def test_raises_image_not_found_when_no_record_in_db(self):
         with pytest.raises(ImageNotFound):
-            find_image_for_path(FIXTURE_IMAGE)
+            find_image_for_path(image_path=FIXTURE_IMAGE)
 
     def test_raises_ambiguous_image_match_when_multiple_records(self):
         Image.create(filename="XS107114.JPG", filepath="/a/XS107114.JPG", taken_at=FIXTURE_DATE_UTC)
         Image.create(filename="XS107114.JPG", filepath="/b/XS107114.JPG", taken_at=FIXTURE_DATE_UTC)
 
         with pytest.raises(AmbiguousImageMatch):
-            find_image_for_path(FIXTURE_IMAGE)
+            find_image_for_path(image_path=FIXTURE_IMAGE)
 
     def test_continues_to_next_strategy_after_multiple_matches(self):
         # Strategy 1 (_by_filename_and_date): no match — wrong filename.
@@ -43,7 +43,7 @@ class TestFindImageForPath:
         Image.create(filename="BURST002.JPG", filepath="/b/BURST002.JPG", taken_at=FIXTURE_DATE_UTC, fujifilm_exif=exif_b)
 
         # Fixture image has film_simulation="Classic Negative" and matching WB fine tune
-        result = find_image_for_path(FIXTURE_IMAGE)
+        result = find_image_for_path(image_path=FIXTURE_IMAGE)
 
         assert result.pk == image_a.pk
 
@@ -55,6 +55,6 @@ class TestFindImageForPath:
         image_a = Image.create(filename="BURST001.JPG", filepath="/a/BURST001.JPG", taken_at=FIXTURE_DATE_UTC, fujifilm_exif=exif_a)
         Image.create(filename="BURST002.JPG", filepath="/b/BURST002.JPG", taken_at=FIXTURE_DATE_UTC, fujifilm_exif=exif_b)
 
-        result = find_image_for_path(FIXTURE_IMAGE)
+        result = find_image_for_path(image_path=FIXTURE_IMAGE)
 
         assert result.pk == image_a.pk
