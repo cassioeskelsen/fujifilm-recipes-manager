@@ -1,4 +1,15 @@
--r requirements.txt
+# Testing
+pytest==9.0.2
+pytest-django==4.12.0
+beautifulsoup4==4.13.4
+
+# Architecture linting
+import-linter==2.11
+grimp==3.14
+
+# Type checking
+django-stubs==5.2.9
+django-stubs-ext==5.2.9
 
 # Enhanced debugger
 pdbpp==0.12.1
