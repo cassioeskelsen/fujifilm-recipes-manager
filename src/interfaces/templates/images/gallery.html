@@ -155,12 +155,23 @@
         hx-get="{% url 'gallery-results' %}"
         hx-trigger="change"
         hx-target="#gallery-results">
-    {% for field, opts in sidebar_options.items %}
+    {% if recipe_options.options %}
+      <div class="filter-group">
+        <label class="filter-label" for="filter-recipe_id">{{ recipe_options.label }}</label>
+        <select id="filter-recipe_id" name="recipe_id" class="filter-select filter-select-search">
+          <option value="">All</option>
+          {% for opt in recipe_options.options %}
+            <option value="{{ opt.value }}"{% if recipe_options.selected == opt.value %} selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+        {% for field, opts in sidebar_options.items %}
       {% if opts.values %}
         <div class="filter-group">
           <label class="filter-label" for="filter-{{ field }}">{{ opts.label }}</label>
           <select id="filter-{{ field }}" name="{{ field }}"
-                  class="filter-select{% if field == 'name' or field == 'film_simulation' %} filter-select-search{% endif %}">
+                  class="filter-select{% if field == 'film_simulation' %} filter-select-search{% endif %}">
             <option value="">All</option>
             {% for value in opts.values %}
               <option value="{{ value }}"{% if opts.selected == value %} selected{% endif %}>{{ value }}</option>

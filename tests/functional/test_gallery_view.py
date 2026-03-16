@@ -47,8 +47,8 @@ class TestGalleryResultsView:
             fujifilm_recipe=recipe_b,
         )
 
-        # Act: filter by recipe_a name
-        response = client.get("/images/results/", {"name": recipe_a.name})
+        # Act: filter by recipe_a id
+        response = client.get("/images/results/", {"recipe_id": recipe_a.id})
 
         assert response.status_code == 200
 

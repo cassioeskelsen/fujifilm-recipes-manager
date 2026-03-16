@@ -2,6 +2,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
 
@@ -10,7 +11,6 @@ from src.domain.images.thumbnails.operations import generate_thumbnail
 from src.domain.images.thumbnails.queries import thumbnail_content_type
 
 RECIPE_FILTER_FIELDS = [
-    ("name", "Recipe Name"),
     ("film_simulation", "Film Simulation"),
     ("dynamic_range", "Dynamic Range"),
     ("d_range_priority", "D-Range Priority"),
@@ -24,11 +24,31 @@ RECIPE_FILTER_FIELDS = [
 
 def _get_filtered_images(request):
     qs = Image.objects.select_related("fujifilm_recipe")
+    recipe_id = request.GET.get("recipe_id")
+    if recipe_id:
+        qs = qs.filter(fujifilm_recipe_id=recipe_id)
     for field, _ in RECIPE_FILTER_FIELDS:
         value = request.GET.get(field)
         if value:
             qs = qs.filter(**{f"fujifilm_recipe__{field}": value})
     return qs.order_by("-is_favorite", "-taken_at")
+
+
+def _get_recipe_options(request):
+    recipes = (
+        FujifilmRecipe.objects.annotate(image_count=Count("images"))
+        .filter(Q(image_count__gt=50) | ~Q(name=""))
+        .order_by("-image_count")
+    )
+    selected = request.GET.get("recipe_id", "")
+    options = [
+        {
+            "value": str(recipe.id),
+            "label": f"{recipe.name if recipe.name else f'{recipe.id} - {recipe.film_simulation}'} ({recipe.image_count})",
+        }
+        for recipe in recipes
+    ]
+    return {"label": "Recipe", "options": options, "selected": selected}
 
 
 def _paginate(request, qs):
@@ -57,10 +77,11 @@ def _get_sidebar_options(request):
 def gallery_view(request):
     page_obj = _paginate(request, _get_filtered_images(request))
     sidebar_options = _get_sidebar_options(request)
+    recipe_options = _get_recipe_options(request)
     return render(
         request,
         "images/gallery.html",
-        {"page_obj": page_obj, "sidebar_options": sidebar_options},
+        {"page_obj": page_obj, "sidebar_options": sidebar_options, "recipe_options": recipe_options},
     )
 
 
