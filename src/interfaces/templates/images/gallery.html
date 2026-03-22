@@ -194,6 +194,17 @@
       color: #888;
       font-style: italic;
     }
+
+    #detail-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      overflow: hidden;
+    }
+
+    #detail-overlay .detail-overlay {
+      height: 100%;
+    }
   </style>
 </head>
 <body>
@@ -201,9 +212,10 @@
 <aside class="sidebar">
   <h2>Filters</h2>
   <form id="filter-form"
-        hx-get="{% url 'gallery-results' %}"
+        hx-get="{% url 'gallery' %}"
         hx-trigger="change"
-        hx-target="#gallery-results">
+        hx-target="#gallery-results"
+        hx-push-url="true">
     {% if recipe_options.options %}
       <div class="filter-group">
         <label class="filter-label" for="filter-recipe_id">{{ recipe_options.label }}</label>
@@ -239,6 +251,8 @@
   </div>
 </main>
 
+<div id="detail-overlay" hidden></div>
+
 <script>
   // Searchable dropdowns for recipe name and film simulation.
   // Tom Select hides the original <select>, so we relay its onChange
@@ -250,6 +264,40 @@
         document.getElementById('filter-form').dispatchEvent(new Event('change'));
       },
     });
+  });
+
+  // Detail overlay logic.
+  var _galleryUrl = null;
+
+  function closeDetail() {
+    document.getElementById('detail-overlay').hidden = true;
+    if (_galleryUrl) {
+      history.replaceState(null, '', _galleryUrl);
+      _galleryUrl = null;
+    }
+  }
+
+  window._detailClose = closeDetail;
+
+  document.body.addEventListener('htmx:beforeRequest', function (e) {
+    if (e.detail.target && e.detail.target.id === 'detail-overlay') {
+      var overlay = document.getElementById('detail-overlay');
+      if (overlay.hidden) _galleryUrl = window.location.href;
+    }
+  });
+
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    if (e.detail.target.id === 'detail-overlay') {
+      e.detail.target.hidden = false;
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var overlay = document.getElementById('detail-overlay');
+    if (!overlay || overlay.hidden) return;
+    if (e.key === 'Escape') closeDetail();
+    if (e.key === 'ArrowLeft') { var btn = overlay.querySelector('.detail-nav-prev'); if (btn) btn.click(); }
+    if (e.key === 'ArrowRight') { var btn = overlay.querySelector('.detail-nav-next'); if (btn) btn.click(); }
   });
 </script>
 </body>

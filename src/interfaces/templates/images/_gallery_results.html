@@ -1,7 +1,11 @@
 <div class="image-grid">
   {% for image in page_obj %}
     <article class="image-card">
-      <a class="detail-link" href="{% url 'image-detail' image.id %}">
+      <a class="detail-link" href="{% url 'image-detail' image.id %}"
+         hx-get="{% url 'image-detail' image.id %}"
+         hx-target="#detail-overlay"
+         hx-push-url="{% url 'image-detail' image.id %}"
+         hx-include="#filter-form">
         <img class="image-thumbnail" src="{% url 'image-file' image.id %}?width=600" alt="{{ image.filename }}" loading="lazy">
       </a>
       <span class="image-recipe">{% if image.fujifilm_recipe and image.fujifilm_recipe.name %}{{ image.fujifilm_recipe.name }}{% elif image.fujifilm_recipe and image.fujifilm_recipe.film_simulation %}{{ image.fujifilm_recipe.film_simulation }}{% else %}—{% endif %}</span>
@@ -33,10 +37,11 @@
   <nav class="pagination" aria-label="Image pagination">
     {% if page_obj.has_previous %}
       <button class="pagination-btn pagination-prev"
-              hx-get="{% url 'gallery-results' %}"
+              hx-get="{% url 'gallery' %}"
               hx-target="#gallery-results"
               hx-include="#filter-form"
-              hx-vals='{"page": "{{ page_obj.previous_page_number }}"}'>
+              hx-vals='{"page": "{{ page_obj.previous_page_number }}"}'
+              hx-push-url="true">
         &larr; Previous
       </button>
     {% endif %}
@@ -47,10 +52,11 @@
 
     {% if page_obj.has_next %}
       <button class="pagination-btn pagination-next"
-              hx-get="{% url 'gallery-results' %}"
+              hx-get="{% url 'gallery' %}"
               hx-target="#gallery-results"
               hx-include="#filter-form"
-              hx-vals='{"page": "{{ page_obj.next_page_number }}"}'>
+              hx-vals='{"page": "{{ page_obj.next_page_number }}"}'
+              hx-push-url="true">
         Next &rarr;
       </button>
     {% endif %}

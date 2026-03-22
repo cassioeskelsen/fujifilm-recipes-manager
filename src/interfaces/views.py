@@ -77,6 +77,8 @@ def _get_sidebar_options(request):
 
 def gallery_view(request):
     page_obj = _paginate(request, _get_filtered_images(request))
+    if request.headers.get("HX-Request"):
+        return render(request, "images/_gallery_results.html", {"page_obj": page_obj})
     sidebar_options = _get_sidebar_options(request)
     recipe_options = _get_recipe_options(request)
     return render(
@@ -91,6 +93,18 @@ def image_detail_view(request, image_id):
         Image.objects.select_related("fujifilm_recipe", "fujifilm_exif"),
         pk=image_id,
     )
+    if request.headers.get("HX-Request"):
+        ids = list(_get_filtered_images(request).values_list("id", flat=True))
+        try:
+            idx = ids.index(image_id)
+        except ValueError:
+            idx = -1
+        context = {
+            "image": image,
+            "prev_id": ids[idx - 1] if idx > 0 else None,
+            "next_id": ids[idx + 1] if idx < len(ids) - 1 else None,
+        }
+        return render(request, "images/_image_detail_partial.html", context)
     return render(request, "images/image_detail.html", {"image": image})
 
 
