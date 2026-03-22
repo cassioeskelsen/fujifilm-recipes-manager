@@ -101,47 +101,87 @@
       min-width: 0;
       border: 1px solid #ddd;
       border-radius: 6px;
-      padding: 1rem;
+      padding: 0.5rem;
       background: #fff;
     }
 
     .image-thumbnail {
-      width: 100%;
-      height: auto;
+      width: auto;
+      max-width: 100%;
+      height: 300px;
       display: block;
       border-radius: 4px;
-      margin-bottom: 0.6rem;
+      margin: 0 auto 0.5rem;
       background: #f0f0f0;
-    }
-
-    .image-filename {
-      display: block;
-      font-weight: 600;
-      font-size: 0.95rem;
-      margin-bottom: 0.3rem;
-      word-break: break-all;
     }
 
     .image-recipe {
       display: block;
-      font-size: 0.8rem;
-      color: #555;
-      margin-bottom: 0.2rem;
+      font-weight: 600;
+      font-size: 1rem;
+      color: #222;
+      margin-bottom: 0.15rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .image-exposure {
-      display: block;
-      font-size: 0.8rem;
-      color: #888;
-      margin-bottom: 0.4rem;
+    .image-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.15rem;
     }
+
+    .image-exposure {
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    .image-filename {
+      font-size: 0.85rem;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: right;
+    }
+
+    .recipe-labels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .recipe-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    .rl-dr   { background: #fef3c7; color: #92400e; }
+    .rl-drp  { background: #ffedd5; color: #9a3412; }
+    .rl-gr   { background: #ccfbf1; color: #134e4a; }
+    .rl-gs   { background: #a7f3d0; color: #064e3b; }
+    .rl-cce  { background: #ede9fe; color: #4c1d95; }
+    .rl-ccfx { background: #e0e7ff; color: #312e81; }
+    .rl-wb   { background: #bfdbfe; color: #1e3a8a; }
+    .rl-r    { background: #fee2e2; color: #7f1d1d; }
+    .rl-b    { background: #bae6fd; color: #0c4a6e; }
+    .rl-hl   { background: #fef08a; color: #713f12; }
+    .rl-sh   { background: #c7d2fe; color: #1e1b4b; }
+    .rl-co   { background: #bbf7d0; color: #14532d; }
+    .rl-srp  { background: #d9f99d; color: #365314; }
+    .rl-ns   { background: #fbcfe8; color: #831843; }
+    .rl-cl   { background: #e5e7eb; color: #1f2937; }
 
     .image-favorite {
       display: inline-block;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       font-weight: 600;
       color: #c8600a;
       background: #fff3e0;
