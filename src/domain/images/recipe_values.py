@@ -13,8 +13,9 @@ Recipe card ↔ DB translation:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from enum import Enum
+
+import attrs
 
 
 # ---------------------------------------------------------------------------
@@ -220,7 +221,7 @@ _WHITE_BALANCE_FROM_LABEL: dict[str, WhiteBalance] = {
 # white_balance_fine_tune  (EXIF tag: White Balance Fine Tune, normalised ÷20)
 # ---------------------------------------------------------------------------
 
-@dataclass
+@attrs.define
 class WhiteBalanceFineTune:
     """
     WB fine-tune stored as e.g. 'Red +2, Blue -4'.
@@ -391,7 +392,7 @@ class GrainEffectSize(str, Enum):
         return cls(label)
 
 
-@dataclass
+@attrs.define
 class GrainEffect:
     """Combined grain effect parsed from a recipe card label e.g. 'Strong Large' or 'Off'."""
     roughness: GrainEffectRoughness
