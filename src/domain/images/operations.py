@@ -26,6 +26,17 @@ class NoFilmSimulationError(Exception):
 
 
 
+def toggle_image_favorite(*, image_id: int) -> bool:
+    """Toggle the is_favorite flag for the image with the given *image_id*.
+
+    Returns the new value of is_favorite after toggling.
+    """
+    image = Image.objects.get(pk=image_id)
+    image.is_favorite = not image.is_favorite
+    image.save(update_fields=["is_favorite"])
+    return image.is_favorite
+
+
 def process_image(*, image_path: str) -> Image:
     """Read EXIF data from *image_path* and persist it to the database.
 

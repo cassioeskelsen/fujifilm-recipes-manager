@@ -6,8 +6,10 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_POST
 
 from src.data.models import FujifilmRecipe, Image
+from src.domain.images.operations import toggle_image_favorite
 from src.domain.images.thumbnails.operations import generate_thumbnail
 from src.domain.images.thumbnails.queries import thumbnail_content_type
 
@@ -135,6 +137,17 @@ def image_file_view(request, image_id):
         return _resized_image_response(path, width)
     content_type, _ = mimetypes.guess_type(image.filepath)
     return FileResponse(path.open("rb"), content_type=content_type or "image/jpeg")
+
+
+@require_POST
+def toggle_favorite_view(request, image_id):
+    get_object_or_404(Image, pk=image_id)
+    is_favorite = toggle_image_favorite(image_id=image_id)
+    return render(
+        request,
+        "images/_favorite_button.html",
+        {"image_id": image_id, "is_favorite": is_favorite},
+    )
 
 
 def _resized_image_response(path: Path, width: int):

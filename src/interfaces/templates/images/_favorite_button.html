@@ -1,0 +1,7 @@
+<button class="detail-favorite{% if is_favorite %} detail-favorite--active{% endif %}"
+        hx-post="{% url 'image-toggle-favorite' image_id %}"
+        hx-swap="outerHTML"
+        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+        title="{% if is_favorite %}Remove from favorites{% else %}Add to favorites{% endif %}">
+  {% if is_favorite %}&#x2605;{% else %}&#x2606;{% endif %}
+</button>

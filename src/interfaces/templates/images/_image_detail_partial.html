@@ -10,10 +10,14 @@
   .detail-header {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     padding: 0.75rem 1.25rem;
     background: #000;
     flex-shrink: 0;
+  }
+
+  .detail-header-spacer {
+    width: 2.5rem;
   }
 
   .detail-close {
@@ -33,6 +37,25 @@
   }
 
   .detail-close:hover { background: rgba(255,255,255,0.25); }
+
+  .detail-favorite {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 1.4rem;
+    border: none;
+    transition: background 0.15s, color 0.15s;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .detail-favorite:hover { background: rgba(255,255,255,0.25); }
+  .detail-favorite--active { color: #f5c518; }
 
   .detail-body {
     display: flex;
@@ -143,6 +166,8 @@
 
 <div class="detail-overlay">
   <header class="detail-header">
+    <div class="detail-header-spacer"></div>
+    {% include "images/_favorite_button.html" with image_id=image.id is_favorite=image.is_favorite %}
     <a href="{% url 'gallery' %}" class="detail-close" title="Close"
        onclick="event.preventDefault(); (window._detailClose || function(){ history.back(); })();">&#x2715;</a>
   </header>
