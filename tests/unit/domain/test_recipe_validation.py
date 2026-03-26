@@ -1,0 +1,338 @@
+"""
+Unit tests for src.domain.camera.validation.validate_recipe_for_camera.
+
+Each parametrized test covers one allowed value for one field, ensuring
+every camera-acceptable value passes without error.  Negative tests verify
+that out-of-range or malformed values raise RecipeValidationError with the
+correct field name.
+"""
+import pytest
+
+from src.data.camera.constants import (
+    CUSTOM_SLOT_CCE_PTP,
+    CUSTOM_SLOT_CFX_PTP,
+    CUSTOM_SLOT_DR_PRIORITY_DECODE,
+    CUSTOM_SLOT_GRAIN_PTP,
+    CUSTOM_SLOT_NR_DECODE,
+    DRANGE_MODE_TO_PTP,
+    FILM_SIMULATION_TO_PTP,
+    WHITE_BALANCE_TO_PTP,
+)
+from src.domain.camera.validation import RecipeValidationError, validate_recipe_for_camera
+from src.domain.images.dataclasses import FujifilmRecipeData
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_recipe(**overrides: object) -> FujifilmRecipeData:
+    defaults = dict(
+        film_simulation="Provia",
+        dynamic_range="DR100",
+        d_range_priority="Off",
+        grain_roughness="Off",
+        grain_size="Off",
+        color_chrome_effect="Off",
+        color_chrome_fx_blue="Off",
+        white_balance="Auto",
+        white_balance_red=0,
+        white_balance_blue=0,
+        highlight="0",
+        shadow="0",
+        color="0",
+        sharpness="0",
+        high_iso_nr="0",
+        clarity="0",
+        monochromatic_color_warm_cool="N/A",
+        monochromatic_color_magenta_green="N/A",
+    )
+    defaults.update(overrides)
+    return FujifilmRecipeData(**defaults)
+
+
+# ---------------------------------------------------------------------------
+# film_simulation — 20 valid values
+# ---------------------------------------------------------------------------
+
+_FILM_SIM_IDS = list(FILM_SIMULATION_TO_PTP.keys())
+
+
+@pytest.mark.parametrize("sim", _FILM_SIM_IDS, ids=_FILM_SIM_IDS)
+def test_film_simulation_valid(sim):
+    validate_recipe_for_camera(_make_recipe(film_simulation=sim))
+
+
+def test_film_simulation_invalid():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(film_simulation="Unknown Film"))
+    assert exc_info.value.field == "film_simulation"
+
+
+# ---------------------------------------------------------------------------
+# white_balance — 14 named modes + Kelvin format
+# ---------------------------------------------------------------------------
+
+_WB_MODE_IDS = list(WHITE_BALANCE_TO_PTP.keys())
+_KELVIN_EXAMPLES = ["2500K", "6500K", "10000K"]
+
+
+@pytest.mark.parametrize("wb", _WB_MODE_IDS, ids=_WB_MODE_IDS)
+def test_white_balance_named_mode_valid(wb):
+    validate_recipe_for_camera(_make_recipe(white_balance=wb))
+
+
+@pytest.mark.parametrize("wb", _KELVIN_EXAMPLES, ids=_KELVIN_EXAMPLES)
+def test_white_balance_kelvin_valid(wb):
+    validate_recipe_for_camera(_make_recipe(white_balance=wb))
+
+
+def test_white_balance_invalid_label():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(white_balance="Tungsten"))
+    assert exc_info.value.field == "white_balance"
+
+
+def test_white_balance_invalid_kelvin_format():
+    # "K6500" is not a valid Kelvin string (digit must come before K)
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(white_balance="K6500"))
+    assert exc_info.value.field == "white_balance"
+
+
+# ---------------------------------------------------------------------------
+# dynamic_range — 4 valid values + empty/N/A optional
+# ---------------------------------------------------------------------------
+
+_DR_MODE_IDS = list(DRANGE_MODE_TO_PTP.keys())
+
+
+@pytest.mark.parametrize("dr", _DR_MODE_IDS, ids=_DR_MODE_IDS)
+def test_dynamic_range_valid(dr):
+    validate_recipe_for_camera(_make_recipe(dynamic_range=dr))
+
+
+@pytest.mark.parametrize("dr", ["", "N/A"])
+def test_dynamic_range_empty_or_na_valid(dr):
+    validate_recipe_for_camera(_make_recipe(dynamic_range=dr))
+
+
+def test_dynamic_range_invalid():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(dynamic_range="DR50"))
+    assert exc_info.value.field == "dynamic_range"
+
+
+# ---------------------------------------------------------------------------
+# d_range_priority — 4 valid values + empty/N/A optional
+# ---------------------------------------------------------------------------
+
+_DR_PRI_IDS = sorted(set(CUSTOM_SLOT_DR_PRIORITY_DECODE.values()))
+
+
+@pytest.mark.parametrize("pri", _DR_PRI_IDS, ids=_DR_PRI_IDS)
+def test_d_range_priority_valid(pri):
+    validate_recipe_for_camera(_make_recipe(d_range_priority=pri))
+
+
+@pytest.mark.parametrize("pri", ["", "N/A"])
+def test_d_range_priority_empty_or_na_valid(pri):
+    validate_recipe_for_camera(_make_recipe(d_range_priority=pri))
+
+
+def test_d_range_priority_invalid():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(d_range_priority="Medium"))
+    assert exc_info.value.field == "d_range_priority"
+
+
+# ---------------------------------------------------------------------------
+# grain — 5 valid (roughness, size) pairs
+# ---------------------------------------------------------------------------
+
+_GRAIN_PAIRS = sorted(set(CUSTOM_SLOT_GRAIN_PTP.values()))
+_GRAIN_IDS = [f"{r}_{s}" for r, s in _GRAIN_PAIRS]
+
+
+@pytest.mark.parametrize("roughness,size", _GRAIN_PAIRS, ids=_GRAIN_IDS)
+def test_grain_valid_pair(roughness, size):
+    validate_recipe_for_camera(_make_recipe(grain_roughness=roughness, grain_size=size))
+
+
+def test_grain_invalid_combination():
+    # ("Off", "Small") is not a valid camera combination
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(grain_roughness="Off", grain_size="Small"))
+    assert exc_info.value.field == "grain_roughness"
+
+
+def test_grain_invalid_roughness_value():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(grain_roughness="Medium", grain_size="Small"))
+    assert exc_info.value.field == "grain_roughness"
+
+
+# ---------------------------------------------------------------------------
+# color_chrome_effect — 3 valid values + empty/N/A optional
+# ---------------------------------------------------------------------------
+
+_CCE_IDS = sorted(set(CUSTOM_SLOT_CCE_PTP.values()))
+
+
+@pytest.mark.parametrize("cce", _CCE_IDS, ids=_CCE_IDS)
+def test_color_chrome_effect_valid(cce):
+    validate_recipe_for_camera(_make_recipe(color_chrome_effect=cce))
+
+
+@pytest.mark.parametrize("cce", ["", "N/A"])
+def test_color_chrome_effect_empty_or_na_valid(cce):
+    validate_recipe_for_camera(_make_recipe(color_chrome_effect=cce))
+
+
+def test_color_chrome_effect_invalid():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(color_chrome_effect="Medium"))
+    assert exc_info.value.field == "color_chrome_effect"
+
+
+# ---------------------------------------------------------------------------
+# color_chrome_fx_blue — 3 valid values + empty/N/A optional
+# ---------------------------------------------------------------------------
+
+_CFX_IDS = sorted(set(CUSTOM_SLOT_CFX_PTP.values()))
+
+
+@pytest.mark.parametrize("cfx", _CFX_IDS, ids=_CFX_IDS)
+def test_color_chrome_fx_blue_valid(cfx):
+    validate_recipe_for_camera(_make_recipe(color_chrome_fx_blue=cfx))
+
+
+@pytest.mark.parametrize("cfx", ["", "N/A"])
+def test_color_chrome_fx_blue_empty_or_na_valid(cfx):
+    validate_recipe_for_camera(_make_recipe(color_chrome_fx_blue=cfx))
+
+
+def test_color_chrome_fx_blue_invalid():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(color_chrome_fx_blue="Ultra"))
+    assert exc_info.value.field == "color_chrome_fx_blue"
+
+
+# ---------------------------------------------------------------------------
+# high_iso_nr — 9 valid values (-4 to +4)
+# ---------------------------------------------------------------------------
+
+_NR_DOMAIN_VALUES = sorted(set(CUSTOM_SLOT_NR_DECODE.values()))  # [-4, -3, ..., 4]
+
+
+@pytest.mark.parametrize("nr", _NR_DOMAIN_VALUES, ids=[str(v) for v in _NR_DOMAIN_VALUES])
+def test_high_iso_nr_valid_int(nr):
+    # Stored as signed string in the recipe (e.g. "+2", "-1", "0")
+    nr_str = f"+{nr}" if nr > 0 else str(nr)
+    validate_recipe_for_camera(_make_recipe(high_iso_nr=nr_str))
+
+
+@pytest.mark.parametrize("nr", ["", "N/A"])
+def test_high_iso_nr_empty_or_na_valid(nr):
+    validate_recipe_for_camera(_make_recipe(high_iso_nr=nr))
+
+
+def test_high_iso_nr_out_of_range():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(high_iso_nr="+5"))
+    assert exc_info.value.field == "high_iso_nr"
+
+
+def test_high_iso_nr_non_numeric():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(high_iso_nr="strong"))
+    assert exc_info.value.field == "high_iso_nr"
+
+
+# ---------------------------------------------------------------------------
+# Numeric string fields (color, sharpness, clarity, highlight, shadow,
+# monochromatic_color_warm_cool, monochromatic_color_magenta_green)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("value", ["-4", "-1", "0", "+1", "+4"])
+def test_color_valid(value):
+    validate_recipe_for_camera(_make_recipe(color=value))
+
+
+@pytest.mark.parametrize("value", ["", "N/A"])
+def test_color_empty_or_na_valid(value):
+    validate_recipe_for_camera(_make_recipe(color=value))
+
+
+def test_color_non_numeric():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(color="vivid"))
+    assert exc_info.value.field == "color"
+
+
+@pytest.mark.parametrize("value", ["-4", "0", "+4"])
+def test_sharpness_valid(value):
+    validate_recipe_for_camera(_make_recipe(sharpness=value))
+
+
+def test_sharpness_non_numeric():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(sharpness="soft"))
+    assert exc_info.value.field == "sharpness"
+
+
+@pytest.mark.parametrize("value", ["-5", "0", "+5"])
+def test_clarity_valid(value):
+    validate_recipe_for_camera(_make_recipe(clarity=value))
+
+
+def test_clarity_non_numeric():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(clarity="high"))
+    assert exc_info.value.field == "clarity"
+
+
+@pytest.mark.parametrize("value", ["-2", "-1.5", "-1", "-0.5", "0", "+0.5", "+1", "+1.5", "+2", "+2.5", "+3", "+3.5", "+4"])
+def test_highlight_valid(value):
+    validate_recipe_for_camera(_make_recipe(highlight=value))
+
+
+def test_highlight_non_numeric():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(highlight="hard"))
+    assert exc_info.value.field == "highlight"
+
+
+@pytest.mark.parametrize("value", ["-2", "-1.5", "0", "+1.5", "+4"])
+def test_shadow_valid(value):
+    validate_recipe_for_camera(_make_recipe(shadow=value))
+
+
+def test_shadow_non_numeric():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(shadow="hard"))
+    assert exc_info.value.field == "shadow"
+
+
+@pytest.mark.parametrize("value", ["-9", "0", "+9", "N/A", ""])
+def test_monochromatic_color_warm_cool_valid(value):
+    validate_recipe_for_camera(_make_recipe(monochromatic_color_warm_cool=value))
+
+
+def test_monochromatic_color_warm_cool_non_numeric():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(monochromatic_color_warm_cool="warm"))
+    assert exc_info.value.field == "monochromatic_color_warm_cool"
+
+
+@pytest.mark.parametrize("value", ["-9", "0", "+9", "N/A", ""])
+def test_monochromatic_color_magenta_green_valid(value):
+    validate_recipe_for_camera(_make_recipe(monochromatic_color_magenta_green=value))
+
+
+def test_monochromatic_color_magenta_green_non_numeric():
+    with pytest.raises(RecipeValidationError) as exc_info:
+        validate_recipe_for_camera(_make_recipe(monochromatic_color_magenta_green="green"))
+    assert exc_info.value.field == "monochromatic_color_magenta_green"

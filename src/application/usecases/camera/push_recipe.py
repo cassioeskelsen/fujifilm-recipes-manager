@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from src.domain.camera import operations
 from src.domain.camera.ptp_device import PTPDevice
+from src.domain.camera.validation import validate_recipe_for_camera
 from src.domain.images.dataclasses import RECIPE_NAME_MAX_LEN, FujifilmRecipeData
 
 
@@ -46,4 +47,5 @@ def push_recipe_to_camera(
     if not slot_name.isascii():
         raise ValueError(f"slot_name must contain only ASCII characters, got {slot_name!r}")
 
+    validate_recipe_for_camera(recipe)
     return operations.push_recipe(device, recipe, slot_index=slot_index, slot_name=slot_name)
