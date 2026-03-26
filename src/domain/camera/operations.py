@@ -6,6 +6,11 @@ Timing requirements (must be respected to avoid camera errors):
   - 200 ms AFTER each property write
   - A liveness ping AFTER each property write
   Total: ~250 ms per property (14 props × 250 ms ≈ 3.5 s for a full recipe)
+
+On transport failures (CameraConnectionError) the write is retried up to
+_WRITE_MAX_RETRIES times with exponential back-off.  A camera.ptp_write.failed
+event is published on every failed attempt; camera.ptp_write.succeeded is
+published when a write completes successfully.
 """
 
 from __future__ import annotations
@@ -14,14 +19,17 @@ import logging
 import time
 
 from src.data.camera import constants
+from src.domain.camera import events
 from src.domain.camera.ptp_device import CameraConnectionError, PTPDevice
 from src.domain.camera.queries import recipe_to_ptp_values
 from src.domain.images.dataclasses import RECIPE_NAME_MAX_LEN, FujifilmRecipeData
 
 logger = logging.getLogger(__name__)
 
-_PRE_WRITE_DELAY_S = 0.050   # 50 ms before each write
-_POST_WRITE_DELAY_S = 0.200  # 200 ms after each write
+_PRE_WRITE_DELAY_S = 0.050    # 50 ms before each write
+_POST_WRITE_DELAY_S = 0.200   # 200 ms after each write
+_WRITE_MAX_RETRIES = 3        # attempts per property before giving up
+_WRITE_RETRY_BACKOFF_S = 0.3  # base back-off; doubles each attempt (0.3 s, 0.6 s, 1.2 s)
 
 
 def push_recipe(
@@ -77,7 +85,7 @@ def push_recipe(
     for code, value in ptp_items:
         time.sleep(_PRE_WRITE_DELAY_S)   # 50 ms before write
 
-        rc = device.set_property_int(code, value)
+        rc = _set_prop_with_retry(device, code, value)
         if rc == 0:
             failed_codes.remove(code)
             written.append((code, value))
@@ -107,6 +115,64 @@ def push_recipe(
     failed_codes.extend(verification_failures)
 
     return failed_codes
+
+
+def _set_prop_with_retry(device: PTPDevice, code: int, value: int) -> int:
+    """
+    Write a single property, retrying on transport failures with exponential back-off.
+
+    Publishes camera.ptp_write.failed for every failed attempt and
+    camera.ptp_write.succeeded when the write completes successfully.
+
+    Camera rejections (non-zero return code) are published as a single
+    camera.ptp_write.failed event and returned immediately without retry,
+    because the camera has actively declined the write.
+
+    Returns:
+        0 on success, non-zero on failure (transport exhausted or camera rejected).
+    """
+    last_error: CameraConnectionError | None = None
+    prop_hex = f"0x{code:04X}"
+
+    for attempt in range(1, _WRITE_MAX_RETRIES + 1):
+        if attempt > 1:
+            time.sleep(_WRITE_RETRY_BACKOFF_S * (2 ** (attempt - 2)))
+
+        try:
+            rc = device.set_property_int(code, value)
+        except CameraConnectionError as exc:
+            last_error = exc
+            events.publish_event(
+                event_type=events.PTP_WRITE_FAILED,
+                params={
+                    "description": (
+                        f"{prop_hex} = {value}: {exc} "
+                        f"(attempt {attempt}/{_WRITE_MAX_RETRIES})"
+                    )
+                },
+            )
+            continue
+
+        if rc != 0:
+            events.publish_event(
+                event_type=events.PTP_WRITE_FAILED,
+                params={
+                    "description": (
+                        f"{prop_hex} = {value}: camera rejected write (rc={rc:#x})"
+                    )
+                },
+            )
+            return rc
+
+        events.publish_event(
+            event_type=events.PTP_WRITE_SUCCEEDED,
+            params={"description": f"{prop_hex} = {value}"},
+        )
+        return 0
+
+    # All retries exhausted due to transport failure; already published per-attempt events.
+    assert last_error is not None
+    return -1
 
 
 def _verify_written_properties(
