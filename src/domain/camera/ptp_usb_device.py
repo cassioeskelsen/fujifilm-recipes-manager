@@ -23,6 +23,7 @@ References:
 from __future__ import annotations
 
 import struct
+import time
 from typing import TYPE_CHECKING
 
 import usb.core
@@ -71,6 +72,9 @@ _RC_SESSION_ALREADY     = 0x201E  # treat as OK
 _USB_TIMEOUT_MS  = 5_000     # 5 s — camera can be slow to respond
 _READ_BUFFER     = 65_536    # max data to read in one call
 _SESSION_ID      = 1
+_PROP_READ_DELAY = 0.05      # 50 ms pause after each property read to avoid overwhelming the camera
+_PROP_MAX_RETRIES = 3        # retry transient USB timeouts before giving up
+_RETRY_BACKOFF   = 0.3       # seconds to wait before each retry (doubles per attempt)
 
 
 # ---------------------------------------------------------------------------
@@ -298,11 +302,8 @@ class PTPUSBDevice:
             return -1
 
     def get_property_int(self, code: int) -> int:
-        tx = self._next_tx()
-        self._send(_command_packet(_OC_GET_DEVICE_PROP_VALUE, tx, code))
-        data = self._recv_data()
-        rc, _ = self._recv_response()
-        self._check_rc(rc, f"GetDevicePropValue(0x{code:04X})")
+        data = self._get_prop_with_retry(code)
+        time.sleep(_PROP_READ_DELAY)
         # Property value is in the data payload after the 12-byte container header.
         # Most Fuji recipe properties are uint16; read as uint32 if 4 bytes available.
         payload = data[12:]
@@ -320,11 +321,8 @@ class PTPUSBDevice:
         return v - 65536 if v >= 32768 else v
 
     def get_property_string(self, code: int) -> str:
-        tx = self._next_tx()
-        self._send(_command_packet(_OC_GET_DEVICE_PROP_VALUE, tx, code))
-        data = self._recv_data()
-        rc, _ = self._recv_response()
-        self._check_rc(rc, f"GetDevicePropValue(string, 0x{code:04X})")
+        data = self._get_prop_with_retry(code)
+        time.sleep(_PROP_READ_DELAY)
         value, _ = _decode_ptp_string(data, 12)
         return value
 
@@ -367,6 +365,23 @@ class PTPUSBDevice:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _get_prop_with_retry(self, code: int) -> bytes:
+        """Send GetDevicePropValue and return the raw data, retrying on USB timeout."""
+        last_err: CameraConnectionError = CameraConnectionError("No retries attempted")
+        for attempt in range(_PROP_MAX_RETRIES):
+            if attempt > 0:
+                time.sleep(_RETRY_BACKOFF * (2 ** (attempt - 1)))
+            try:
+                tx = self._next_tx()
+                self._send(_command_packet(_OC_GET_DEVICE_PROP_VALUE, tx, code))
+                data = self._recv_data()
+                rc, _ = self._recv_response()
+                self._check_rc(rc, f"GetDevicePropValue(0x{code:04X})")
+                return data
+            except CameraConnectionError as e:
+                last_err = e
+        raise last_err
 
     def _next_tx(self) -> int:
         tx = self._tx_id
