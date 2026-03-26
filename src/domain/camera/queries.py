@@ -287,8 +287,13 @@ def recipe_to_ptp_values(recipe: FujifilmRecipeData) -> RecipePTPValues:
     else:
         dr_mode = constants.DRANGE_MODE_TO_PTP.get(recipe.dynamic_range) if recipe.dynamic_range else None
 
-    # --- Grain effect (roughness + size → single PTP int) ---
-    grain = _GRAIN_TO_PTP.get((recipe.grain_roughness, recipe.grain_size))
+    # --- Grain effect ---
+    # Write 1 for any Off roughness; camera normalises to 6 (Off+Small) or
+    # 7 (Off+Large), retaining the last remembered size (X-S10 confirmed 2026-03-26).
+    if recipe.grain_roughness == "Off":
+        grain = 1
+    else:
+        grain = _GRAIN_TO_PTP.get((recipe.grain_roughness, recipe.grain_size))
 
     # --- Color chrome effect / FX blue ---
     cce = _CCE_TO_PTP.get(recipe.color_chrome_effect)

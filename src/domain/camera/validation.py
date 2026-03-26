@@ -26,12 +26,15 @@ _VALID_DR_PRIORITIES: frozenset[str] = frozenset(
     constants.CUSTOM_SLOT_DR_PRIORITY_DECODE.values()
 )
 
-# Grain valid (roughness, size) pairs come from the unique tuples in the
-# decode table.  The decode table maps two raw values (6 and 7) to the same
-# domain pair ("Off", "Off"); the unique pairs are what the write side cares about.
-_VALID_GRAIN_PAIRS: frozenset[tuple[str, str]] = frozenset(
-    constants.CUSTOM_SLOT_GRAIN_PTP.values()
-)
+# Grain valid roughness values and their allowed sizes.
+# Write-side behaviour (confirmed X-S10, 2026-03-26):
+#   - Roughness "Off"  → write 1; camera normalises to 6/7, retaining last size.
+#     Size "Off", "Small", or "Large" are all valid — the size is remembered by
+#     the camera, not encoded in the write value.
+#   - Roughness "Weak" / "Strong" → size must be "Small" or "Large" (distinct PTP values).
+_VALID_OFF_SIZES: frozenset[str] = frozenset(("Off", "Small", "Large"))
+_VALID_ON_SIZES: frozenset[str] = frozenset(("Small", "Large"))
+_VALID_ROUGHNESS: frozenset[str] = frozenset(("Off", "Weak", "Strong"))
 
 _VALID_CCE: frozenset[str] = frozenset(constants.CUSTOM_SLOT_CCE_PTP.values())
 
@@ -99,10 +102,13 @@ def validate_recipe_for_camera(recipe: FujifilmRecipeData) -> None:
     ):
         raise RecipeValidationError("d_range_priority", recipe.d_range_priority)
 
-    # --- grain: validated as a (roughness, size) pair ---
-    grain_pair = (recipe.grain_roughness, recipe.grain_size)
-    if grain_pair not in _VALID_GRAIN_PAIRS:
-        raise RecipeValidationError("grain_roughness", grain_pair)
+    # --- grain: roughness and size validated together ---
+    roughness, size = recipe.grain_roughness, recipe.grain_size
+    if roughness not in _VALID_ROUGHNESS:
+        raise RecipeValidationError("grain_roughness", (roughness, size))
+    valid_sizes = _VALID_OFF_SIZES if roughness == "Off" else _VALID_ON_SIZES
+    if size not in valid_sizes:
+        raise RecipeValidationError("grain_roughness", (roughness, size))
 
     # --- color_chrome_effect ---
     if recipe.color_chrome_effect not in _EMPTY_OR_NA and recipe.color_chrome_effect not in _VALID_CCE:

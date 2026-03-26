@@ -12,7 +12,6 @@ from src.data.camera.constants import (
     CUSTOM_SLOT_CCE_PTP,
     CUSTOM_SLOT_CFX_PTP,
     CUSTOM_SLOT_DR_PRIORITY_DECODE,
-    CUSTOM_SLOT_GRAIN_PTP,
     CUSTOM_SLOT_NR_DECODE,
     DRANGE_MODE_TO_PTP,
     FILM_SIMULATION_TO_PTP,
@@ -148,22 +147,35 @@ def test_d_range_priority_invalid():
 
 
 # ---------------------------------------------------------------------------
-# grain — 5 valid (roughness, size) pairs
+# grain — 7 valid (roughness, size) combinations
+#
+# Roughness "Off" → camera writes 1 and normalises to 6 or 7, retaining the
+# last remembered size.  All three sizes (Off, Small, Large) are valid when
+# roughness is Off (X-S10 confirmed 2026-03-26).
+# Roughness "Weak" / "Strong" → size must be "Small" or "Large".
 # ---------------------------------------------------------------------------
 
-_GRAIN_PAIRS = sorted(set(CUSTOM_SLOT_GRAIN_PTP.values()))
-_GRAIN_IDS = [f"{r}_{s}" for r, s in _GRAIN_PAIRS]
+_GRAIN_VALID_COMBOS = [
+    ("Off",    "Off"),
+    ("Off",    "Small"),
+    ("Off",    "Large"),
+    ("Weak",   "Small"),
+    ("Weak",   "Large"),
+    ("Strong", "Small"),
+    ("Strong", "Large"),
+]
+_GRAIN_IDS = [f"{r}_{s}" for r, s in _GRAIN_VALID_COMBOS]
 
 
-@pytest.mark.parametrize("roughness,size", _GRAIN_PAIRS, ids=_GRAIN_IDS)
+@pytest.mark.parametrize("roughness,size", _GRAIN_VALID_COMBOS, ids=_GRAIN_IDS)
 def test_grain_valid_pair(roughness, size):
     validate_recipe_for_camera(_make_recipe(grain_roughness=roughness, grain_size=size))
 
 
-def test_grain_invalid_combination():
-    # ("Off", "Small") is not a valid camera combination
+def test_grain_invalid_size_for_active_roughness():
+    # ("Weak", "Off") is not valid — size must be Small or Large when roughness is active
     with pytest.raises(RecipeValidationError) as exc_info:
-        validate_recipe_for_camera(_make_recipe(grain_roughness="Off", grain_size="Small"))
+        validate_recipe_for_camera(_make_recipe(grain_roughness="Weak", grain_size="Off"))
     assert exc_info.value.field == "grain_roughness"
 
 
