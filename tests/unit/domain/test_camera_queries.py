@@ -81,6 +81,64 @@ class TestFilmSimulationPTPMapping:
         assert ptp.FilmSimulation == 19
 
 
+class TestMonochromaticColorPTPMapping:
+    """
+    Verify MonochromaticColorWarmCool (0xD193) and MonochromaticColorMagentaGreen (0xD194)
+    are encoded as value × 10 (int16), and are None for non-monochromatic film sims.
+
+    Confirmed 2026-03-26 X-S10:
+      -18 → 65356 (0xFF4C = -180 as int16)
+        0 → 0
+      +18 → 180
+    """
+
+    _MONO_SIM = "Acros STD"
+    _NON_MONO_SIM = "Provia"
+
+    @pytest.mark.parametrize("domain,expected_ptp", [
+        ("-18", -180),
+        ("-9",  -90),
+        ("0",     0),
+        ("+9",   90),
+        ("+18",  180),
+    ])
+    def test_mono_warm_cool_encoding(self, domain, expected_ptp):
+        recipe = _make_recipe(
+            film_simulation=self._MONO_SIM,
+            color=None,
+            monochromatic_color_warm_cool=domain,
+            monochromatic_color_magenta_green="0",
+        )
+        assert recipe_to_ptp_values(recipe).MonochromaticColorWarmCool == expected_ptp
+
+    @pytest.mark.parametrize("domain,expected_ptp", [
+        ("-18", -180),
+        ("-9",  -90),
+        ("0",     0),
+        ("+9",   90),
+        ("+18",  180),
+    ])
+    def test_mono_magenta_green_encoding(self, domain, expected_ptp):
+        recipe = _make_recipe(
+            film_simulation=self._MONO_SIM,
+            color=None,
+            monochromatic_color_warm_cool="0",
+            monochromatic_color_magenta_green=domain,
+        )
+        assert recipe_to_ptp_values(recipe).MonochromaticColorMagentaGreen == expected_ptp
+
+    @pytest.mark.parametrize("value", [None, ""])
+    def test_mono_fields_none_for_non_mono_sim(self, value):
+        recipe = _make_recipe(
+            film_simulation=self._NON_MONO_SIM,
+            monochromatic_color_warm_cool=value,
+            monochromatic_color_magenta_green=value,
+        )
+        ptp = recipe_to_ptp_values(recipe)
+        assert ptp.MonochromaticColorWarmCool is None
+        assert ptp.MonochromaticColorMagentaGreen is None
+
+
 class TestDRangeModePTPMapping:
     """Verify all D-Range mode PTP values, especially the corrected DR-Auto."""
 

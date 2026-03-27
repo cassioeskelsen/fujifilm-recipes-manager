@@ -37,6 +37,7 @@ _GRAIN_TO_PTP: dict[tuple[str, str], int] = {
 _CCE_TO_PTP: dict[str, int] = {v: k for k, v in constants.CUSTOM_SLOT_CCE_PTP.items()}
 _CFX_TO_PTP: dict[str, int] = {v: k for k, v in constants.CUSTOM_SLOT_CFX_PTP.items()}
 _NR_TO_PTP: dict[int, int] = {v: k for k, v in constants.CUSTOM_SLOT_NR_DECODE.items()}
+_DR_PRIORITY_TO_PTP: dict[str, int] = {v: k for k, v in constants.CUSTOM_SLOT_DR_PRIORITY_DECODE.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -277,24 +278,30 @@ class RecipePTPValues:
     PTP integer values to write for each custom-slot property.
 
     Attribute names mirror the keys of constants.CUSTOM_SLOT_CODES.
-    None means the property will not be written (unsupported or not applicable).
+
+    Required fields are always written — they are guaranteed non-None after
+    validate_recipe_for_camera().  Optional fields (int | None) are only
+    written when not None; None means the property is not applicable for this
+    recipe (e.g. DRangeMode when D-Range Priority is active).
     """
-    FilmSimulation: int | None = None
-    WhiteBalance: int | None = None
+    # Always written — correspond to required (non-None) fields in FujifilmRecipeData
+    FilmSimulation: int
+    WhiteBalance: int
+    WhiteBalanceRed: int
+    WhiteBalanceBlue: int
+    DRangePriority: int
+    GrainEffect: int
+    ColorEffect: int
+    ColorFx: int
+    Sharpness: int
+    HighIsoNoiseReduction: int
+    Definition: int
+    # Conditionally written — correspond to str | None fields in FujifilmRecipeData
     WhiteBalanceColorTemperature: int | None = None
-    WhiteBalanceRed: int | None = None
-    WhiteBalanceBlue: int | None = None
     DRangeMode: int | None = None
-    DRangePriority: int | None = None
-    GrainEffect: int | None = None
-    ColorEffect: int | None = None
-    ColorFx: int | None = None
     ColorMode: int | None = None
-    Sharpness: int | None = None
     HighLightTone: int | None = None
     ShadowTone: int | None = None
-    HighIsoNoiseReduction: int | None = None
-    Definition: int | None = None
     MonochromaticColorWarmCool: int | None = None
     MonochromaticColorMagentaGreen: int | None = None
 
@@ -315,58 +322,62 @@ def recipe_to_ptp_values(recipe: FujifilmRecipeData) -> RecipePTPValues:
 
     Properties that cannot be mapped (e.g. unsupported film simulations) are
     left as None and will not be written.
-
-    Notes:
-        - Grain size has no known separate PTP property; only roughness is written.
-        - Some mappings (white balance, D-range) require validation against a real
-          camera.  See TODO comments in data/camera/constants.py.
-        - Monochromatic tuning (warm/cool, magenta/green) write encoding unknown;
-          left as None until confirmed.
     """
     validate_recipe_for_camera(recipe)
 
-    # --- Film simulation ---
-    film_sim = constants.FILM_SIMULATION_TO_PTP.get(recipe.film_simulation)
+    # --- Film simulation (always set after validation) ---
+    film_sim: int = constants.FILM_SIMULATION_TO_PTP[recipe.film_simulation]
 
-    # --- White balance mode ---
+    # --- White balance mode (always set after validation) ---
     # recipe.white_balance is either an enum label (e.g. "Auto") or "6500K".
     wb_label = recipe.white_balance
     if wb_label.endswith("K") and wb_label[:-1].isdigit():
-        wb = constants.WHITE_BALANCE_TO_PTP.get("Kelvin")
-        wb_kelvin = int(wb_label[:-1])
+        wb: int = constants.WHITE_BALANCE_TO_PTP["Kelvin"]
+        wb_kelvin: int | None = int(wb_label[:-1])
     else:
-        wb = constants.WHITE_BALANCE_TO_PTP.get(wb_label)
+        wb = constants.WHITE_BALANCE_TO_PTP[wb_label]
         wb_kelvin = None
+
+    # --- D-Range Priority (always written; unset → Off) ---
+    drp = recipe.d_range_priority
+    dr_priority: int = _DR_PRIORITY_TO_PTP.get(drp, _DR_PRIORITY_TO_PTP["Off"])
 
     # --- D-Range mode ---
     # D-Range Priority takes precedence; skip DRangeMode when active.
-    if recipe.d_range_priority and recipe.d_range_priority != "Off":
-        dr_mode = None
+    if drp and drp != "Off":
+        dr_mode: int | None = None
     else:
-        dr_mode = constants.DRANGE_MODE_TO_PTP.get(recipe.dynamic_range) if recipe.dynamic_range is not None else None
+        dr_mode = constants.DRANGE_MODE_TO_PTP.get(recipe.dynamic_range) if recipe.dynamic_range not in (None, "") else None
 
-    # --- Grain effect ---
+    # --- Grain effect (always written) ---
     # Write 1 for any Off roughness; camera normalises to 6 (Off+Small) or
     # 7 (Off+Large), retaining the last remembered size (X-S10 confirmed 2026-03-26).
     if recipe.grain_roughness == "Off":
-        grain = 1
+        grain: int = 1
     else:
-        grain = _GRAIN_TO_PTP.get((recipe.grain_roughness, recipe.grain_size))
+        assert recipe.grain_size is not None  # guaranteed by validate_recipe_for_camera
+        grain = _GRAIN_TO_PTP[(recipe.grain_roughness, recipe.grain_size)]
 
-    # --- Color chrome effect / FX blue ---
-    cce = _CCE_TO_PTP.get(recipe.color_chrome_effect)
-    cfx = _CFX_TO_PTP.get(recipe.color_chrome_fx_blue)
+    # --- Color chrome effect / FX blue (always written; unset → Off) ---
+    cce: int = _CCE_TO_PTP.get(recipe.color_chrome_effect, _CCE_TO_PTP["Off"])
+    cfx: int = _CFX_TO_PTP.get(recipe.color_chrome_fx_blue, _CFX_TO_PTP["Off"])
 
     # --- Scaled int16 fields (value × 10) ---
-    color = int(recipe.color) * 10 if recipe.color is not None else None
-    sharpness = int(recipe.sharpness) * 10 if recipe.sharpness not in ("", "N/A") else None
+    color = int(recipe.color) * 10 if recipe.color not in (None, "") else None
+    # Sharpness and clarity always written; unset → 0 (normal)
+    sharpness: int = int(recipe.sharpness) * 10 if recipe.sharpness not in (None, "", "N/A") else 0
     # Half-step values possible (e.g. +1.5); round after ×10.
-    highlight = round(float(recipe.highlight) * 10) if recipe.highlight is not None else None
-    shadow = round(float(recipe.shadow) * 10) if recipe.shadow is not None else None
-    clarity = int(recipe.clarity) * 10 if recipe.clarity not in ("", "N/A") else None
+    highlight = round(float(recipe.highlight) * 10) if recipe.highlight not in (None, "") else None
+    shadow = round(float(recipe.shadow) * 10) if recipe.shadow not in (None, "") else None
+    clarity: int = int(recipe.clarity) * 10 if recipe.clarity not in (None, "", "N/A") else 0
 
-    # --- High ISO noise reduction (non-linear lookup) ---
-    nr = _NR_TO_PTP.get(int(recipe.high_iso_nr)) if recipe.high_iso_nr not in ("", "N/A") else None
+    # --- High ISO noise reduction (non-linear lookup; always written; unset → 0/normal) ---
+    nr: int = _NR_TO_PTP[int(recipe.high_iso_nr)] if recipe.high_iso_nr not in (None, "", "N/A") else _NR_TO_PTP[0]
+
+    # --- Monochromatic colour tuning (int16 ÷ 10; confirmed 2026-03-26 X-S10) ---
+    # None when film sim is not monochromatic (field not applicable).
+    mono_wc = round(float(recipe.monochromatic_color_warm_cool) * 10) if recipe.monochromatic_color_warm_cool not in (None, "") else None
+    mono_mg = round(float(recipe.monochromatic_color_magenta_green) * 10) if recipe.monochromatic_color_magenta_green not in (None, "") else None
 
     return RecipePTPValues(
         FilmSimulation=film_sim,
@@ -375,6 +386,7 @@ def recipe_to_ptp_values(recipe: FujifilmRecipeData) -> RecipePTPValues:
         WhiteBalanceRed=recipe.white_balance_red,
         WhiteBalanceBlue=recipe.white_balance_blue,
         DRangeMode=dr_mode,
+        DRangePriority=dr_priority,
         GrainEffect=grain,
         ColorEffect=cce,
         ColorFx=cfx,
@@ -384,4 +396,6 @@ def recipe_to_ptp_values(recipe: FujifilmRecipeData) -> RecipePTPValues:
         ShadowTone=shadow,
         HighIsoNoiseReduction=nr,
         Definition=clarity,
+        MonochromaticColorWarmCool=mono_wc,
+        MonochromaticColorMagentaGreen=mono_mg,
     )
