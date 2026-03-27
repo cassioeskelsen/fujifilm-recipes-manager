@@ -103,7 +103,7 @@
   }
 </style>
 
-<div class="slot-card">
+<div id="slot-card" class="slot-card">
   <button class="slot-card-close" onclick="closeSlotOverlay()" title="Close">&#x2715;</button>
   <h1 class="card-title">Push recipe to camera</h1>
   <p class="recipe-name">{{ recipe.name }}</p>
@@ -112,12 +112,11 @@
     <p class="slot-error">{{ error }}</p>
   {% else %}
     <p class="section-label">Select import slot</p>
-    <div id="slot-result"></div>
     {% for slot in slots %}
     <div class="slot-form">
       <button type="button" class="slot-btn"
               hx-post="{% url 'push-recipe-to-camera' recipe_id=recipe.id slot=slot.label %}"
-              hx-target="#slot-result"
+              hx-target="#slot-card"
               hx-swap="innerHTML"
               hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
         <span class="slot-label">{{ slot.label }}</span>

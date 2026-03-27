@@ -21,7 +21,6 @@ class TestPushRecipeToCameraView:
 
     def test_success_returns_saved_message(self, client):
         recipe = _recipe(name="My Recipe")
-        # autouse fixture → FakePTPDevice → all writes succeed
 
         response = client.post(f"/recipes/{recipe.id}/push/C4/")
 
@@ -57,7 +56,7 @@ class TestPushRecipeToCameraView:
         response = client.post(f"/recipes/{recipe.id}/push/C2/")
 
         assert response.status_code == 503
-        assert "Camera connection error" in response.json()["error"]
+        assert "No camera found" in response.json()["error"]
 
     def test_recipe_write_error_returns_500_with_failed_properties(self, client, settings):
         recipe = _recipe()
@@ -69,7 +68,7 @@ class TestPushRecipeToCameraView:
 
         assert response.status_code == 500
         data = response.json()
-        assert "Recipe write failed" in data["error"]
+        assert "couldn't be saved" in data["error"]
         assert "SlotName" in data["error"]
 
     def test_camera_write_error_returns_500(self, client, settings):
@@ -81,7 +80,7 @@ class TestPushRecipeToCameraView:
         response = client.post(f"/recipes/{recipe.id}/push/C1/")
 
         assert response.status_code == 500
-        assert "Camera write error" in response.json()["error"]
+        assert "rejected a write" in response.json()["error"]
 
     def test_unexpected_error_returns_500_with_generic_message(self, client, settings):
         recipe = _recipe()
@@ -94,7 +93,7 @@ class TestPushRecipeToCameraView:
         response = client.post(f"/recipes/{recipe.id}/push/C1/")
 
         assert response.status_code == 500
-        assert response.json() == {"error": "Unexpected error happened"}
+        assert response.json() == {"error": "An unexpected error occurred. Please try again."}
 
 
 @pytest.mark.django_db
@@ -106,15 +105,136 @@ class TestPushRecipeToCameraViewHtmx:
     def _post(self, client, recipe_id, slot):
         return client.post(f"/recipes/{recipe_id}/push/{slot}/", HTTP_HX_REQUEST="true")
 
-    def test_success_renders_partial_with_success_message(self, client):
+    # ------------------------------------------------------------------
+    # Success state
+    # ------------------------------------------------------------------
+
+    def test_success_renders_animated_check(self, client):
         recipe = _recipe(name="My Recipe")
 
         response = self._post(client, recipe.id, "C4")
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.content, "html.parser")
-        assert soup.find(class_="push-result--ok") is not None
-        assert "C4" in soup.get_text()
+        assert soup.find(class_="push-check-svg") is not None
+
+    def test_success_renders_big_message_with_slot(self, client):
+        recipe = _recipe(name="My Recipe")
+
+        response = self._post(client, recipe.id, "C4")
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        message = soup.find(class_="push-result-message")
+        assert message is not None
+        assert "C4" in message.get_text()
+
+    def test_success_result_has_no_slot_buttons(self, client):
+        recipe = _recipe(name="My Recipe")
+
+        response = self._post(client, recipe.id, "C4")
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        assert soup.select(".slot-btn") == []
+
+    # ------------------------------------------------------------------
+    # Error state
+    # ------------------------------------------------------------------
+
+    def test_error_result_has_no_slot_buttons(self, client, settings):
+        recipe = _recipe()
+        settings.PTP_DEVICE = lambda: FakePTPDevice(
+            set_rejection_codes={constants.PROP_SLOT_NAME: 0x2005}
+        )
+
+        response = self._post(client, recipe.id, "C1")
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        assert soup.select(".slot-btn") == []
+
+    def test_error_result_shows_friendly_message(self, client, settings):
+        recipe = _recipe()
+        settings.PTP_DEVICE = lambda: FakePTPDevice(
+            set_rejection_codes={constants.PROP_SLOT_NAME: 0x2005}
+        )
+
+        response = self._post(client, recipe.id, "C1")
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        assert soup.find(class_="push-result-err-message") is not None
+
+    def test_error_result_does_not_expose_raw_exception(self, client, settings):
+        recipe = _recipe()
+        settings.PTP_DEVICE = lambda: FakePTPDevice(
+            set_errors={constants.PROP_SLOT_CURSOR: CameraConnectionError("raw internal detail")}
+        )
+
+        response = self._post(client, recipe.id, "C2")
+
+        assert "raw internal detail" not in response.content.decode()
+
+    def test_error_result_shows_retry_button(self, client, settings):
+        recipe = _recipe()
+        settings.PTP_DEVICE = lambda: FakePTPDevice(
+            set_rejection_codes={constants.PROP_SLOT_NAME: 0x2005}
+        )
+
+        response = self._post(client, recipe.id, "C3")
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        assert soup.find(class_="push-retry-btn") is not None
+
+    def test_error_retry_button_posts_to_same_endpoint(self, client, settings):
+        recipe = _recipe()
+        settings.PTP_DEVICE = lambda: FakePTPDevice(
+            set_rejection_codes={constants.PROP_SLOT_NAME: 0x2005}
+        )
+
+        response = self._post(client, recipe.id, "C3")
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        retry_btn = soup.find(class_="push-retry-btn")
+        assert retry_btn["hx-post"] == f"/recipes/{recipe.id}/push/C3/"
+
+    def test_error_retry_button_targets_slot_card(self, client, settings):
+        recipe = _recipe()
+        settings.PTP_DEVICE = lambda: FakePTPDevice(
+            set_rejection_codes={constants.PROP_SLOT_NAME: 0x2005}
+        )
+
+        response = self._post(client, recipe.id, "C3")
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        retry_btn = soup.find(class_="push-retry-btn")
+        assert retry_btn["hx-target"] == "#slot-card"
+
+    def test_error_retry_button_label_includes_slot(self, client, settings):
+        recipe = _recipe()
+        settings.PTP_DEVICE = lambda: FakePTPDevice(
+            set_rejection_codes={constants.PROP_SLOT_NAME: 0x2005}
+        )
+
+        response = self._post(client, recipe.id, "C5")
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        retry_btn = soup.find(class_="push-retry-btn")
+        assert "C5" in retry_btn.get_text()
+
+    # ------------------------------------------------------------------
+    # Error messages per exception type
+    # ------------------------------------------------------------------
+
+    def test_camera_connection_error_renders_no_camera_message(self, client, settings):
+        recipe = _recipe()
+        settings.PTP_DEVICE = lambda: FakePTPDevice(
+            set_rejection_codes={constants.PROP_SLOT_CURSOR: 0x2005}
+        )
+
+        response = self._post(client, recipe.id, "C2")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        assert soup.find(class_="push-result-err-message") is not None
+        assert "No camera found" in soup.get_text()
 
     def test_recipe_write_error_renders_partial_with_error(self, client, settings):
         recipe = _recipe()
@@ -126,21 +246,8 @@ class TestPushRecipeToCameraViewHtmx:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.content, "html.parser")
-        assert soup.find(class_="push-result--err") is not None
-        assert "Recipe write failed" in soup.get_text()
-
-    def test_camera_connection_error_renders_partial_with_error(self, client, settings):
-        recipe = _recipe()
-        settings.PTP_DEVICE = lambda: FakePTPDevice(
-            set_rejection_codes={constants.PROP_SLOT_CURSOR: 0x2005}
-        )
-
-        response = self._post(client, recipe.id, "C2")
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.content, "html.parser")
-        assert soup.find(class_="push-result--err") is not None
-        assert "Camera connection error" in soup.get_text()
+        assert soup.find(class_="push-result-err-message") is not None
+        assert "couldn't be saved" in soup.get_text()
 
     def test_camera_write_error_renders_partial_with_error(self, client, settings):
         recipe = _recipe()
@@ -152,8 +259,8 @@ class TestPushRecipeToCameraViewHtmx:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.content, "html.parser")
-        assert soup.find(class_="push-result--err") is not None
-        assert "Camera write error" in soup.get_text()
+        assert soup.find(class_="push-result-err-message") is not None
+        assert "rejected a write" in soup.get_text()
 
     def test_unexpected_error_renders_partial_with_generic_message(self, client, settings):
         recipe = _recipe()
@@ -167,5 +274,5 @@ class TestPushRecipeToCameraViewHtmx:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.content, "html.parser")
-        assert soup.find(class_="push-result--err") is not None
-        assert "Unexpected error happened" in soup.get_text()
+        assert soup.find(class_="push-result-err-message") is not None
+        assert "unexpected error" in soup.get_text().lower()

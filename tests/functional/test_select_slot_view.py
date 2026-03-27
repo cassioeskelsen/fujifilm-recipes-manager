@@ -120,6 +120,15 @@ class TestSelectSlotViewHtmx:
         for btn, slot in zip(buttons, ["C1", "C2", "C3", "C4"]):
             assert btn["hx-post"] == f"/recipes/{recipe.id}/push/{slot}/"
 
+    def test_success_slot_buttons_target_slot_card(self, client):
+        recipe = _recipe(name="My Recipe")
+
+        response = self._get(client, recipe.id)
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        for btn in soup.select(".slot-btn"):
+            assert btn["hx-target"] == "#slot-card"
+
     def test_camera_connection_error_renders_partial_with_error(self, client, settings):
         recipe = _recipe(name="My Recipe")
         settings.PTP_DEVICE = lambda: FakePTPDevice(

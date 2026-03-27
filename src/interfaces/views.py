@@ -201,28 +201,30 @@ class PushRecipeToCameraView(View):
     def post(self, request, recipe_id, slot):
         is_htmx = request.headers.get("HX-Request")
         recipe_data = recipe_from_db(recipe=self.recipe)
+        error_ctx = {"recipe_id": recipe_id, "slot": slot}
         try:
             push_recipe_to_camera(recipe_data, slot_index=self.slot_index)
         except RecipeWriteError as e:
-            error = f"Recipe write failed: {', '.join(e.failed_properties)}"
+            error = f"Some settings couldn't be saved ({', '.join(e.failed_properties)}). Please try again."
             if is_htmx:
-                return render(request, "recipes/_push_result_partial.html", {"error": error})
+                return render(request, "recipes/_push_result_partial.html", {"error": error, **error_ctx})
             return JsonResponse({"error": error}, status=500)
-        except CameraConnectionError as e:
-            error = f"Camera connection error: {e}"
+        except CameraConnectionError:
+            error = "No camera found. Make sure it's connected via USB and set to PC Connection or RAW CONV. mode."
             if is_htmx:
-                return render(request, "recipes/_push_result_partial.html", {"error": error})
+                return render(request, "recipes/_push_result_partial.html", {"error": error, **error_ctx})
             return JsonResponse({"error": error}, status=503)
-        except CameraWriteError as e:
-            error = f"Camera write error: {e}"
+        except CameraWriteError:
+            error = "The camera rejected a write operation. Please try again."
             if is_htmx:
-                return render(request, "recipes/_push_result_partial.html", {"error": error})
+                return render(request, "recipes/_push_result_partial.html", {"error": error, **error_ctx})
             return JsonResponse({"error": error}, status=500)
         except Exception:
             logging.exception("Unexpected error in PushRecipeToCameraView.post")
+            error = "An unexpected error occurred. Please try again."
             if is_htmx:
-                return render(request, "recipes/_push_result_partial.html", {"error": "Unexpected error happened"})
-            return JsonResponse({"error": "Unexpected error happened"}, status=500)
+                return render(request, "recipes/_push_result_partial.html", {"error": error, **error_ctx})
+            return JsonResponse({"error": error}, status=500)
         if is_htmx:
             return render(request, "recipes/_push_result_partial.html", {"success": True, "message": f"Recipe saved to {slot}"})
         return JsonResponse({"message": f"Recipe saved in {slot}"})
