@@ -57,6 +57,73 @@
     .ts-control { font-size: 0.9rem; }
     .ts-wrapper.single.has-items .ts-control input { width: 0; min-width: 0; }
 
+    .clear-filters-btn {
+      display: block;
+      width: 100%;
+      padding: 0.35rem 0.5rem;
+      margin-bottom: 1.2rem;
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: #666;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .clear-filters-btn:hover {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .filter-checkboxes {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0.1rem 0.2rem;
+      border-radius: 3px;
+      color: #333;
+      user-select: none;
+    }
+
+    .filter-option:hover { background: #f0f0f0; }
+
+    .filter-option--unavailable {
+      color: #bbb;
+    }
+
+    .filter-option--unavailable input[type="checkbox"] {
+      opacity: 0.4;
+    }
+
+    .filter-option-value {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .filter-option-count {
+      font-size: 0.75rem;
+      color: #999;
+      flex-shrink: 0;
+    }
+
+    .filter-option--unavailable .filter-option-count {
+      color: #ccc;
+    }
+
     .main {
       flex: 1;
       min-width: 0;
@@ -377,6 +444,7 @@
 
 <aside class="sidebar">
   <h2>Filters</h2>
+  <a href="{% url 'gallery' %}?favorites_first={{ favorites_first }}" class="clear-filters-btn">Clear all filters</a>
   <form id="filter-form"
         hx-get="{% url 'gallery' %}"
         hx-trigger="change"
@@ -389,31 +457,8 @@
       </label>
       <input type="hidden" name="favorites_first" id="favorites-first-input" value="{{ favorites_first }}">
     </div>
-    {% if recipe_options.options %}
-      <div class="filter-group">
-        <label class="filter-label" for="filter-recipe_id">{{ recipe_options.label }}</label>
-        <select id="filter-recipe_id" name="recipe_id" class="filter-select filter-select-search">
-          <option value="">All</option>
-          {% for opt in recipe_options.options %}
-            <option value="{{ opt.value }}"{% if recipe_options.selected == opt.value %} selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    {% endif %}
-        {% for field, opts in sidebar_options.items %}
-      {% if opts.values %}
-        <div class="filter-group">
-          <label class="filter-label" for="filter-{{ field }}">{{ opts.label }}</label>
-          <select id="filter-{{ field }}" name="{{ field }}"
-                  class="filter-select{% if field == 'film_simulation' %} filter-select-search{% endif %}">
-            <option value="">All</option>
-            {% for value in opts.values %}
-              <option value="{{ value }}"{% if opts.selected == value %} selected{% endif %}>{{ value }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      {% endif %}
-    {% endfor %}
+    {% include "images/_recipe_filter.html" %}
+    {% include "images/_sidebar_filters.html" %}
   </form>
 </aside>
 
@@ -444,17 +489,26 @@
 <div id="slot-overlay" hidden></div>
 
 <script>
-  // Searchable dropdowns for recipe name and film simulation.
-  // Tom Select hides the original <select>, so we relay its onChange
+  // Multi-select recipe dropdown with search and removable tags.
+  // Tom Select hides the original <select multiple>, so we relay its onChange
   // as a native change event on the form so HTMX picks it up.
-  document.querySelectorAll('.filter-select-search').forEach(function (el) {
-    new TomSelect(el, {
-      create: false,
-      onChange: function () {
-        document.getElementById('filter-form').dispatchEvent(new Event('change'));
-      },
+  // Selected items appear as visible tags in the control (top of the widget).
+  function initRecipeSelects() {
+    document.querySelectorAll('.filter-select-search').forEach(function (el) {
+      if (el.tomselect) return; // already initialised
+      new TomSelect(el, {
+        create: false,
+        plugins: ['remove_button'],
+        onChange: function () {
+          document.getElementById('filter-form').dispatchEvent(new Event('change'));
+        },
+      });
     });
-  });
+  }
+  initRecipeSelects();
+
+  // Re-initialise after HTMX OOB-swaps the recipe filter into the DOM.
+  document.body.addEventListener('htmx:afterSettle', initRecipeSelects);
 
   // Favorites-first toggle: persists in localStorage, syncs with URL param.
   (function () {

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.paginator import Paginator
-from django.db.models import Count, IntegerField, Q
+from django.db.models import Count, Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
@@ -14,53 +14,73 @@ from src.application.usecases.camera.get_camera_slots import get_camera_slots
 from src.application.usecases.camera.push_recipe import RecipeWriteError, push_recipe_to_camera
 from src.data.models import FujifilmRecipe, Image
 from src.domain.camera.ptp_device import CameraConnectionError, CameraWriteError
+from src.domain.images.filter_queries import RECIPE_FILTER_FIELDS, get_sidebar_filter_options
 from src.domain.images.operations import RecipeNameValidationError, set_recipe_name, toggle_image_favorite
 from src.domain.images.queries import recipe_from_db
 from src.domain.images.thumbnails.operations import generate_thumbnail
 from src.domain.images.thumbnails.queries import thumbnail_content_type
 
-RECIPE_FILTER_FIELDS = [
-    ("film_simulation", "Film Simulation"),
-    ("dynamic_range", "Dynamic Range"),
-    ("d_range_priority", "D-Range Priority"),
-    ("grain_roughness", "Grain Roughness"),
-    ("grain_size", "Grain Size"),
-    ("color_chrome_effect", "Color Chrome Effect"),
-    ("color_chrome_fx_blue", "Color Chrome FX Blue"),
-    ("white_balance", "White Balance"),
-    ("white_balance_red", "WB Red"),
-    ("white_balance_blue", "WB Blue"),
-]
+
+def _active_filters_from_request(request) -> dict[str, list[str]]:
+    filters = {
+        field: request.GET.getlist(field)
+        for field, _ in RECIPE_FILTER_FIELDS
+        if request.GET.getlist(field)
+    }
+    recipe_ids = request.GET.getlist("recipe_id")
+    if recipe_ids:
+        filters["recipe_id"] = recipe_ids
+    return filters
 
 
 def _get_filtered_images(request):
     qs = Image.objects.select_related("fujifilm_recipe")
-    recipe_id = request.GET.get("recipe_id")
-    if recipe_id:
-        qs = qs.filter(fujifilm_recipe_id=recipe_id)
+    recipe_ids = request.GET.getlist("recipe_id")
+    if recipe_ids:
+        qs = qs.filter(fujifilm_recipe_id__in=recipe_ids)
     for field, _ in RECIPE_FILTER_FIELDS:
-        value = request.GET.get(field)
-        if value:
-            qs = qs.filter(**{f"fujifilm_recipe__{field}": value})
+        values = request.GET.getlist(field)
+        if values:
+            qs = qs.filter(**{f"fujifilm_recipe__{field}__in": values})
     if request.GET.get("favorites_first", "1") == "1":
         return qs.order_by("-is_favorite", "-taken_at")
     return qs.order_by("-taken_at")
 
 
-def _get_recipe_options(request):
+def _get_recipe_options(request, active_field_filters: dict[str, list[str]]):
+    selected = request.GET.getlist("recipe_id")
+
+    # Count images per recipe after applying active field filters.
+    filtered_qs = Image.objects.filter(fujifilm_recipe__isnull=False)
+    for field, values in active_field_filters.items():
+        if values:
+            filtered_qs = filtered_qs.filter(**{f"fujifilm_recipe__{field}__in": values})
+    filtered_counts = {
+        str(row["fujifilm_recipe_id"]): row["count"]
+        for row in filtered_qs.values("fujifilm_recipe_id").annotate(count=Count("id"))
+    }
+
+    # Show notable recipes (>50 total images or named) plus any currently selected.
+    selected_ids = [int(r) for r in selected if r.isdigit()]
     recipes = (
-        FujifilmRecipe.objects.annotate(image_count=Count("images"))
-        .filter(Q(image_count__gt=50) | ~Q(name=""))
-        .order_by("-image_count")
+        FujifilmRecipe.objects.annotate(total_images=Count("images"))
+        .filter(Q(total_images__gt=50) | ~Q(name="") | Q(id__in=selected_ids))
+        .order_by("-total_images")
     )
-    selected = request.GET.get("recipe_id", "")
-    options = [
-        {
+
+    options = []
+    for recipe in recipes:
+        count = filtered_counts.get(str(recipe.id), 0)
+        name = recipe.name if recipe.name else f"{recipe.id} - {recipe.film_simulation}"
+        options.append({
             "value": str(recipe.id),
-            "label": f"{recipe.name if recipe.name else f'{recipe.id} - {recipe.film_simulation}'} ({recipe.image_count})",
-        }
-        for recipe in recipes
-    ]
+            "label": f"{name} ({count})",
+            "available": count > 0,
+            "selected": str(recipe.id) in selected,
+        })
+    # Available recipes first; stable sort preserves total_images order within each group.
+    options.sort(key=lambda o: 0 if o["available"] else 1)
+
     return {"label": "Recipe", "options": options, "selected": selected}
 
 
@@ -70,34 +90,18 @@ def _paginate(request, qs):
     return paginator.get_page(page_number)
 
 
-def _get_sidebar_options(request):
-    options = {}
-    for field, label in RECIPE_FILTER_FIELDS:
-        model_field = FujifilmRecipe._meta.get_field(field)
-        if isinstance(model_field, IntegerField):
-            exclude_kwargs = {f"{field}__isnull": True}
-        else:
-            exclude_kwargs = {field: ""}
-        values = (
-            FujifilmRecipe.objects.values_list(field, flat=True)
-            .distinct()
-            .exclude(**exclude_kwargs)
-            .order_by(field)
-        )
-        options[field] = {
-            "label": label,
-            "values": list(values),
-            "selected": request.GET.get(field, ""),
-        }
-    return options
-
-
 def gallery_view(request):
+    active_filters = _active_filters_from_request(request)
+    active_field_filters = {k: v for k, v in active_filters.items() if k != "recipe_id"}
     page_obj = _paginate(request, _get_filtered_images(request))
+    sidebar_options = get_sidebar_filter_options(active_filters)
+    recipe_options = _get_recipe_options(request, active_field_filters)
     if request.headers.get("HX-Request"):
-        return render(request, "images/_gallery_htmx_filter_response.html", {"page_obj": page_obj})
-    sidebar_options = _get_sidebar_options(request)
-    recipe_options = _get_recipe_options(request)
+        return render(request, "images/_gallery_htmx_filter_response.html", {
+            "page_obj": page_obj,
+            "sidebar_options": sidebar_options,
+            "recipe_options": recipe_options,
+        })
     favorites_first = request.GET.get("favorites_first", "1")
     return render(
         request,

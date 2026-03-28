@@ -7,6 +7,121 @@ from tests.factories import FujifilmRecipeFactory, ImageFactory
 
 
 @pytest.mark.django_db
+class TestRecipeMultiSelect:
+    def test_single_recipe_filter_returns_matching_images(self, client):
+        recipe_a = FujifilmRecipeFactory(name="Recipe A")
+        recipe_b = FujifilmRecipeFactory(name="Recipe B")
+        ImageFactory(filename="a.jpg", fujifilm_recipe=recipe_a)
+        ImageFactory(filename="b.jpg", fujifilm_recipe=recipe_b)
+
+        response = client.get("/images/results/", {"recipe_id": recipe_a.id})
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        filenames = {c.find(class_="image-filename").text.strip() for c in soup.find_all(class_="image-card")}
+        assert filenames == {"a.jpg"}
+
+    def test_two_recipe_ids_return_images_from_both(self, client):
+        recipe_a = FujifilmRecipeFactory(name="Recipe A")
+        recipe_b = FujifilmRecipeFactory(name="Recipe B")
+        recipe_c = FujifilmRecipeFactory(name="Recipe C")
+        ImageFactory(filename="a.jpg", fujifilm_recipe=recipe_a)
+        ImageFactory(filename="b.jpg", fujifilm_recipe=recipe_b)
+        ImageFactory(filename="c.jpg", fujifilm_recipe=recipe_c)
+
+        response = client.get(f"/images/results/?recipe_id={recipe_a.id}&recipe_id={recipe_b.id}")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        filenames = {c.find(class_="image-filename").text.strip() for c in soup.find_all(class_="image-card")}
+        assert filenames == {"a.jpg", "b.jpg"}
+        assert "c.jpg" not in filenames
+
+    def test_full_page_renders_selected_recipe_options_as_selected(self, client):
+        recipe = FujifilmRecipeFactory(name="My Recipe")
+        ImageFactory.create_batch(51, fujifilm_recipe=recipe)
+
+        response = client.get("/images/", {"recipe_id": str(recipe.id)})
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        option = soup.find("option", {"value": str(recipe.id)})
+        assert option is not None
+        assert option.has_attr("selected")
+
+    def test_full_page_renders_recipe_select_as_multiple(self, client):
+        recipe = FujifilmRecipeFactory(name="Named Recipe")
+        ImageFactory(fujifilm_recipe=recipe)
+
+        response = client.get("/images/")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        recipe_select = soup.find("select", {"name": "recipe_id"})
+        assert recipe_select is not None
+        assert recipe_select.has_attr("multiple")
+
+    def test_recipe_filter_combined_with_field_filter(self, client):
+        recipe_provia = FujifilmRecipeFactory(name="Provia Recipe", film_simulation="Provia")
+        recipe_velvia = FujifilmRecipeFactory(name="Velvia Recipe", film_simulation="Velvia")
+        ImageFactory(filename="provia.jpg", fujifilm_recipe=recipe_provia)
+        ImageFactory(filename="velvia.jpg", fujifilm_recipe=recipe_velvia)
+
+        # Select both recipes but also filter by Provia — only provia.jpg should match
+        response = client.get(
+            f"/images/results/?recipe_id={recipe_provia.id}&recipe_id={recipe_velvia.id}&film_simulation=Provia"
+        )
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        filenames = {c.find(class_="image-filename").text.strip() for c in soup.find_all(class_="image-card")}
+        assert filenames == {"provia.jpg"}
+
+
+@pytest.mark.django_db
+class TestClearFiltersButton:
+    def test_clear_button_is_present_on_gallery_page(self, client):
+        response = client.get("/images/")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        btn = soup.find(class_="clear-filters-btn")
+        assert btn is not None
+
+    def test_clear_button_links_to_gallery_without_filters(self, client):
+        response = client.get("/images/", {"film_simulation": "Provia", "favorites_first": "1"})
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        btn = soup.find(class_="clear-filters-btn")
+        href = btn["href"]
+        assert "film_simulation" not in href
+        assert "recipe_id" not in href
+
+    def test_clear_button_preserves_favorites_first_preference(self, client):
+        response = client.get("/images/", {"favorites_first": "0"})
+
+        soup = BeautifulSoup(response.content, "html.parser")
+        btn = soup.find(class_="clear-filters-btn")
+        assert "favorites_first=0" in btn["href"]
+
+    def test_following_clear_button_shows_all_images(self, client):
+        recipe_a = FujifilmRecipeFactory(film_simulation="Provia")
+        recipe_b = FujifilmRecipeFactory(film_simulation="Velvia")
+        ImageFactory(filename="a.jpg", fujifilm_recipe=recipe_a)
+        ImageFactory(filename="b.jpg", fujifilm_recipe=recipe_b)
+
+        # First apply a filter
+        filtered = client.get("/images/results/", {"film_simulation": "Provia"})
+        soup = BeautifulSoup(filtered.content, "html.parser")
+        assert len(soup.find_all(class_="image-card")) == 1
+
+        # Then navigate to the clear URL
+        cleared = client.get("/images/")
+        soup = BeautifulSoup(cleared.content, "html.parser")
+        assert len(soup.find_all(class_="image-card")) == 2
+
+
+@pytest.mark.django_db
 class TestGalleryResultsView:
     def test_filters_images_by_recipe_name(self, client):
         # Arrange: 2 recipes, 3 images (2 for recipe_a, 1 for recipe_b)

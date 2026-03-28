@@ -11,6 +11,20 @@ A sidebar lets you narrow the gallery by recipe settings: film simulation, dynam
 grain, white balance, and other creative fields. Filters update the grid without reloading
 the page.
 
+Filtering is **faceted**: selecting a value in one field instantly updates the available
+choices in every other field to only show combinations that exist in your library. You can
+select **multiple values within the same field** (e.g. Provia and Velvia at once) — images
+matching any of those values are shown. Values that have been selected but are no longer
+reachable given the other active filters are shown greyed-out; unchecking a conflicting
+filter brings them back.
+
+You can also **filter by recipe** using the searchable multi-select at the top of the
+sidebar. Choosing one or more recipes narrows all other filter options to that recipe's
+images, and conversely, active field filters update the recipe list to reflect only recipes
+that have matching images.
+
+A **Clear all filters** link at the top of the sidebar resets everything in one click.
+
 You can also choose to show your **favourite** images first at the top of the grid.
 
 ---

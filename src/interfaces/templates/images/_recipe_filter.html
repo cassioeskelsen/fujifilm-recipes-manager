@@ -1,0 +1,14 @@
+<div id="recipe-filter"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if recipe_options.options %}
+    <div class="filter-group">
+      <label class="filter-label" for="filter-recipe_id">{{ recipe_options.label }}</label>
+      <select id="filter-recipe_id" name="recipe_id" multiple class="filter-select filter-select-search">
+        {% for opt in recipe_options.options %}
+          <option value="{{ opt.value }}"
+                  {% if opt.selected %}selected{% endif %}
+                  {% if not opt.available %}data-unavailable="true"{% endif %}>{{ opt.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  {% endif %}
+</div>
