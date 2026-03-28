@@ -2,8 +2,17 @@
 
 A Django application for managing Fujifilm camera recipes and browsing your image catalog. It reads EXIF data from your JPEG files, matches images to the Fujifilm recipe they were shot with, and lets you filter and group your catalog by recipe. Camera integration (pushing recipes directly to the camera) is in progress.
 
-![Gallery view](images/2026-03-22_18-48.jpg)
-![Image detail](images/2026-03-22_18-52.jpg)
+Read more about it in our [documentation index](docs/index.md).
+
+![Gallery view](docs/images/2026-03-22_18-48.jpg)
+![Image detail](docs/images/2026-03-22_18-52.jpg)
+
+## Features
+
+- Import Fujifilm JPEGs and browse them in a filterable gallery
+- View full-resolution images with their complete recipe and EXIF data
+- Mark favourites and manage them in bulk
+- Name recipes and push them to your camera's custom slots over USB
 
 ---
 
@@ -158,6 +167,26 @@ Then open [http://localhost:8000/images/](http://localhost:8000/images/) in your
 
 ---
 
+## How to use
+
+### Browse your catalog
+
+Visit `/images/` to see all processed images. Use the filter controls to narrow results by recipe, film simulation, white balance, and more.
+
+### Process new images
+
+Re-run `process_images` or `process_images_sync` pointing at any directory containing new images. Already-processed images are updated in place with fresh EXIF data. Images without Fujifilm EXIF data are skipped.
+
+### Push a recipe to your camera
+
+Connect your Fujifilm camera in PTP mode, then open any image in the detail view. Name its
+recipe if it doesn't have one yet, and use the "Send to camera" button to write it to one
+of the custom slots (C1–C7).
+
+For full information on available functionality, see [docs/web_interface.md](docs/web_interface.md) and [docs/management_commands.md](docs/management_commands.md).
+
+---
+
 ## Developer setup
 
 Install the development dependencies:
@@ -173,25 +202,3 @@ pytest
 ```
 
 Tests use `pytest-django`. Configuration is in `pytest.ini`.
-
----
-
-## How to use
-
-### Browse your catalog
-
-Visit `/images/` to see all processed images. Use the filter controls to narrow results by recipe, film simulation, white balance, and more.
-
-### Process new images
-
-Re-run `process_images` or `process_images_sync` pointing at any directory containing new images. Already-processed images are updated in place with fresh EXIF data. Images without Fujifilm EXIF data are skipped.
-
-### Generate thumbnails
-
-```bash
-python manage.py generate_thumbnails
-```
-
-### Camera integration (TODO)
-
-Pushing recipes directly to the camera via PTP/USB is under development. See [ADR/001-camera-bridge.md](ADR/001-camera-bridge.md) for the architectural decisions behind the camera bridge implementation.
