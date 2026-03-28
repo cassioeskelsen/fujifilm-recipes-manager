@@ -12,8 +12,8 @@
     body { display: flex; font-family: sans-serif; height: 100vh; overflow: hidden; }
 
     .sidebar {
-      width: 280px;
-      min-width: 280px;
+      width: 320px;
+      min-width: 320px;
       padding: 1.5rem;
       border-right: 1px solid #e0e0e0;
       overflow-y: auto;
@@ -55,6 +55,7 @@
     /* Tune Tom Select to match sidebar width */
     .ts-wrapper { width: 100%; }
     .ts-control { font-size: 0.9rem; }
+    .ts-wrapper.single.has-items .ts-control input { width: 0; min-width: 0; }
 
     .main {
       flex: 1;
