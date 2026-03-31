@@ -25,9 +25,8 @@ Camera setup:
 
 from django.core.management.base import BaseCommand
 
-from src.domain.camera import queries
+from src.application.usecases.camera import get_camera_info as get_camera_info_uc
 from src.domain.camera import ptp_device
-from src.domain.camera import ptp_usb_device
 
 
 class Command(BaseCommand):
@@ -44,44 +43,28 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Connecting to camera via USB…")
 
-        device = ptp_usb_device.PTPUSBDevice()
-
         try:
-            device.connect()
+            result = get_camera_info_uc.get_camera_status(read_slots=options["slots"])
         except ptp_device.CameraConnectionError as e:
             self.stderr.write(self.style.ERROR(f"Connection failed: {e}"))
             return
 
-        try:
-            self._print_camera_info(device, read_slots=options["slots"])
-        except ptp_device.CameraConnectionError as e:
-            self.stderr.write(self.style.ERROR(f"Error while reading camera: {e}"))
-        finally:
-            device.disconnect()
-            self.stdout.write("Disconnected.")
-
-    def _print_camera_info(self, device: ptp_usb_device.PTPUSBDevice, *, read_slots: bool) -> None:
-        info = queries.camera_info(device)
-
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS("Camera connected"))
-        self.stdout.write(f"  Model:            {info.camera_name!r}")
-        self.stdout.write(f"  USB mode (raw):   {info.usb_mode}")
-        self.stdout.write(f"  Battery (raw):    {info.battery_raw}")
-        self.stdout.write(f"  Firmware (raw):   {info.firmware_version}")
+        self.stdout.write(f"  Model:            {result.info.camera_name!r}")
+        self.stdout.write(f"  USB mode (raw):   {result.info.usb_mode}")
+        self.stdout.write(f"  Battery (raw):    {result.info.battery_raw}")
+        self.stdout.write(f"  Firmware (raw):   {result.info.firmware_version}")
+        self.stdout.write(f"  Custom slots:     {result.custom_slot_count}")
+        self.stdout.write("Disconnected.")
 
-        custom_slots = queries.custom_slot_count(info.camera_name)
-        self.stdout.write(f"  Custom slots:     {custom_slots}")
-
-        if read_slots:
-            if custom_slots == 0:
+        if options["slots"]:
+            if result.slots is None:
                 self.stdout.write("  (This camera model does not support custom slots.)")
                 return
-
             self.stdout.write("")
             self.stdout.write("Custom slot contents:")
-            slot_list = queries.slot_states(device, custom_slots)
-            for slot in slot_list:
+            for slot in result.slots:
                 self.stdout.write(
                     f"  C{slot.index}: {slot.name!r:20s}  film sim → {slot.film_sim_name}"
                 )
