@@ -158,8 +158,10 @@ def image_file_view(request, image_id):
 
 @http_decorators.require_POST
 def toggle_favorite_view(request, image_id):
-    shortcuts.get_object_or_404(models.Image, pk=image_id)
-    is_favorite = image_operations.toggle_image_favorite(image_id=image_id)
+    try:
+        is_favorite = image_operations.toggle_image_favorite(image_id=image_id)
+    except models.Image.DoesNotExist:
+        raise http.Http404
     return shortcuts.render(
         request,
         "images/_favorite_button.html",
