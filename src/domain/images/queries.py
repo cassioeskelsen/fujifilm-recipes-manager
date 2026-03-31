@@ -1,3 +1,4 @@
+import attrs
 import os
 import re
 import subprocess
@@ -8,6 +9,7 @@ from django.core import exceptions as django_exceptions
 
 from src.data import models
 from src.domain.images import dataclasses as image_dataclasses
+from src.domain.images import filter_queries
 from src.domain.images import recipe_values
 
 class ImageNotFound(Exception):
@@ -346,3 +348,49 @@ def collect_image_paths(*, folder: str) -> list[str]:
 
     paths.sort()
     return paths
+
+
+@attrs.frozen
+class ImageDetailContext:
+    image: models.Image
+    prev_id: int | None
+    next_id: int | None
+
+
+def get_image_detail(
+    *,
+    image_id: int,
+    active_filters: dict[str, list[str]],
+    favorites_first: bool,
+) -> ImageDetailContext:
+    """Fetch an image and its prev/next neighbours within the filtered image sequence.
+
+    Raises:
+        models.Image.DoesNotExist: If no image with *image_id* exists.
+    """
+    image = models.Image.objects.select_related("fujifilm_recipe", "fujifilm_exif").get(pk=image_id)
+
+    qs = models.Image.objects.select_related("fujifilm_recipe")
+    recipe_ids = active_filters.get("recipe_id", [])
+    if recipe_ids:
+        qs = qs.filter(fujifilm_recipe_id__in=recipe_ids)
+    for field, _ in filter_queries.RECIPE_FILTER_FIELDS:
+        values = active_filters.get(field, [])
+        if values:
+            qs = qs.filter(**{f"fujifilm_recipe__{field}__in": values})
+    if favorites_first:
+        qs = qs.order_by("-is_favorite", "-taken_at", "id")
+    else:
+        qs = qs.order_by("-taken_at", "id")
+
+    ids = list(qs.values_list("id", flat=True))
+    try:
+        idx = ids.index(image_id)
+    except ValueError:
+        idx = -1
+
+    return ImageDetailContext(
+        image=image,
+        prev_id=ids[idx - 1] if idx > 0 else None,
+        next_id=ids[idx + 1] if idx < len(ids) - 1 else None,
+    )

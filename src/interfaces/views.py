@@ -16,6 +16,7 @@ from src.data import models
 from src.domain.camera import ptp_device
 from src.domain.images import filter_queries
 from src.domain.images import operations as image_operations
+from src.domain.images import queries as image_queries
 from src.domain.images.thumbnails import operations as thumbnail_operations
 
 
@@ -114,22 +115,26 @@ def gallery_view(request):
 
 
 def image_detail_view(request, image_id):
+    if request.headers.get("HX-Request"):
+        active_filters = _active_filters_from_request(request)
+        favorites_first = request.GET.get("favorites_first", "1") == "1"
+        try:
+            detail = image_queries.get_image_detail(
+                image_id=image_id,
+                active_filters=active_filters,
+                favorites_first=favorites_first,
+            )
+        except models.Image.DoesNotExist:
+            raise http.Http404
+        return shortcuts.render(request, "images/_image_detail_partial.html", {
+            "image": detail.image,
+            "prev_id": detail.prev_id,
+            "next_id": detail.next_id,
+        })
     image = shortcuts.get_object_or_404(
         models.Image.objects.select_related("fujifilm_recipe", "fujifilm_exif"),
         pk=image_id,
     )
-    if request.headers.get("HX-Request"):
-        ids = list(_get_filtered_images(request).values_list("id", flat=True))
-        try:
-            idx = ids.index(image_id)
-        except ValueError:
-            idx = -1
-        context = {
-            "image": image,
-            "prev_id": ids[idx - 1] if idx > 0 else None,
-            "next_id": ids[idx + 1] if idx < len(ids) - 1 else None,
-        }
-        return shortcuts.render(request, "images/_image_detail_partial.html", context)
     return shortcuts.render(request, "images/image_detail.html", {"image": image})
 
 
