@@ -1,3 +1,4 @@
+{% load image_filters %}
 {% for image in page_obj %}
   <article class="image-card">
     <a class="detail-link" href="{% url 'image-detail' image.id %}"
@@ -12,9 +13,9 @@
       <span class="image-exposure">{% if image.aperture %}F{{ image.aperture }}{% endif %}{% if image.shutter_speed %}{% if image.aperture %} - {% endif %}{{ image.shutter_speed }}{% endif %}{% if image.iso %}{% if image.aperture or image.shutter_speed %} - {% endif %}ISO {{ image.iso }}{% endif %}</span>
       <span class="image-filename">{{ image.filename }}</span>
     </div>
-    {% if image.is_favorite or image.fujifilm_recipe %}
+    {% if image.rating or image.fujifilm_recipe %}
       <div class="recipe-labels">
-        {% if image.is_favorite %}<span class="image-favorite">Favorite</span>{% endif %}
+        {% if image.rating %}<span class="image-rating">{{ image.rating|stars }}</span>{% endif %}
         {% if image.fujifilm_recipe %}
           {% if image.fujifilm_recipe.dynamic_range %}<span class="recipe-label rl-dr">{{ image.fujifilm_recipe.dynamic_range }}</span>{% endif %}
 {% if image.fujifilm_recipe.white_balance %}<span class="recipe-label rl-wb">WB {{ image.fujifilm_recipe.white_balance }}</span>{% endif %}

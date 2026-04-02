@@ -142,17 +142,38 @@ class TestGalleryResultsView:
         # Only the 2 images belonging to recipe_a are shown
         assert len(cards) == 2
 
-        # Favorite image appears first, then non-favorite
+        # Favourite image appears first (lower id), then non-favourite
         filenames = [card.find(class_="image-filename").text.strip() for card in cards]
         assert filenames == ["fav.jpg", "normal.jpg"]
-
-        # Favorite card carries the favourite marker; non-favourite does not
-        assert cards[0].find(class_="image-favorite") is not None
-        assert cards[1].find(class_="image-favorite") is None
 
         # Both cards show the recipe name
         assert cards[0].find(class_="image-recipe") is not None
         assert cards[1].find(class_="image-recipe") is not None
+
+
+@pytest.mark.django_db
+class TestGalleryCardRatingLabel:
+    def test_rated_card_shows_rating_label_with_correct_stars(self, client):
+        ImageFactory(filename="rated.jpg", rating=3)
+
+        response = client.get("/images/results/")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        card = soup.find(class_="image-card")
+        label = card.find(class_="image-rating")
+        assert label is not None
+        assert label.text.strip() == "★★★"
+
+    def test_unrated_card_does_not_show_rating_label(self, client):
+        ImageFactory(filename="unrated.jpg", rating=0)
+
+        response = client.get("/images/results/")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.content, "html.parser")
+        card = soup.find(class_="image-card")
+        assert card.find(class_="image-rating") is None
 
 
 @pytest.mark.django_db
