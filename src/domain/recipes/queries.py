@@ -31,6 +31,60 @@ RECIPE_FIELDS: tuple[str, ...] = (
 )
 
 
+_DECIMAL_FIELDS: frozenset[str] = frozenset({
+    "highlight",
+    "shadow",
+    "color",
+    "sharpness",
+    "high_iso_nr",
+    "clarity",
+    "monochromatic_color_warm_cool",
+    "monochromatic_color_magenta_green",
+})
+
+_FIELD_LABELS: dict[str, str] = {
+    "film_simulation": "Film Simulation",
+    "dynamic_range": "Dynamic Range",
+    "d_range_priority": "D-Range Priority",
+    "grain_roughness": "Grain",
+    "grain_size": "Grain Size",
+    "color_chrome_effect": "Color Chrome",
+    "color_chrome_fx_blue": "CC FX Blue",
+    "white_balance": "White Balance",
+    "white_balance_red": "WB Red",
+    "white_balance_blue": "WB Blue",
+    "highlight": "Highlight",
+    "shadow": "Shadow",
+    "color": "Color",
+    "sharpness": "Sharpness",
+    "high_iso_nr": "High ISO NR",
+    "clarity": "Clarity",
+    "monochromatic_color_warm_cool": "BW Warm/Cool",
+    "monochromatic_color_magenta_green": "BW Mag/Green",
+}
+
+
+@attrs.frozen
+class FieldValue:
+    field: str
+    value: str
+    before: str | None = None  # set on diffs; None for root all-fields display
+
+
+@attrs.frozen
+class PathNodeDelta:
+    recipe_id: int
+    label: str
+    changed_fields: tuple[FieldValue, ...]
+
+
+@attrs.frozen
+class PathDeltaResult:
+    root_diffs: tuple[FieldValue, ...]
+    path_nodes: tuple[PathNodeDelta, ...]
+    missing_ids: tuple[int, ...]
+
+
 def _decimal_str(value: object) -> str:
     """Convert a non-null Decimal DB value to a signed string (e.g. Decimal('1.5') → '+1.5')."""
     n = float(value)  # type: ignore[arg-type]
@@ -200,4 +254,87 @@ def get_recipe_comparison(*, recipe_ids: list[int]) -> RecipeComparisonResult:
         missing_ids=missing,
         stats_by_id=stats_by_id,
         monthly_counts=monthly_counts,
+    )
+
+
+def _field_display_value(field: str, raw: object) -> str | None:
+    """Return a display-ready string for *field*'s value, or None to omit it."""
+    if raw is None:
+        return None
+    if field in _DECIMAL_FIELDS:
+        return _decimal_str(raw)
+    return str(raw)
+
+
+def _recipe_all_fields(recipe: models.FujifilmRecipe) -> tuple[FieldValue, ...]:
+    result = []
+    for field in RECIPE_FIELDS:
+        value = _field_display_value(field, getattr(recipe, field))
+        if value is not None:
+            result.append(FieldValue(field=_FIELD_LABELS[field], value=value))
+    return tuple(result)
+
+
+def _recipe_diff_fields(
+    a: models.FujifilmRecipe,
+    b: models.FujifilmRecipe,
+) -> tuple[FieldValue, ...]:
+    """Return FieldValues for fields where *a* and *b* differ, with before and after values."""
+    result = []
+    for field in RECIPE_FIELDS:
+        if getattr(a, field) != getattr(b, field):
+            after = _field_display_value(field, getattr(b, field))
+            before = _field_display_value(field, getattr(a, field))
+            result.append(FieldValue(
+                field=_FIELD_LABELS[field],
+                value=after if after is not None else "—",
+                before=before if before is not None else "—",
+            ))
+    return tuple(result)
+
+
+def get_recipe_all_fields(*, recipe: models.FujifilmRecipe) -> tuple[FieldValue, ...]:
+    """Return all non-None RECIPE_FIELDS of *recipe* as display-ready FieldValue tuples."""
+    return _recipe_all_fields(recipe)
+
+
+def get_path_deltas(*, path_ids: list[int]) -> PathDeltaResult:
+    """Compute per-node field deltas for an ordered path through the recipe graph.
+
+    *path_ids* must be ordered root → clicked node. For each recipe:
+    - The root (index 0) gets all its non-None field values.
+    - Each subsequent node gets only the fields that changed vs the immediately preceding node.
+
+    *root_diffs* contains every field where the root differs from the clicked (last) node,
+    using the clicked node's values — a direct comparison independent of path length.
+    """
+    recipes_by_id = {
+        r.pk: r for r in models.FujifilmRecipe.objects.filter(pk__in=path_ids)
+    }
+    missing = tuple(sorted(set(path_ids) - set(recipes_by_id)))
+    ordered = [recipes_by_id[i] for i in path_ids if i in recipes_by_id]
+
+    if not ordered:
+        return PathDeltaResult(root_diffs=(), path_nodes=(), missing_ids=missing)
+
+    path_nodes: list[PathNodeDelta] = []
+    for i, recipe in enumerate(ordered):
+        if i == 0:
+            changed = _recipe_all_fields(recipe)
+        else:
+            changed = _recipe_diff_fields(ordered[i - 1], recipe)
+        path_nodes.append(PathNodeDelta(
+            recipe_id=recipe.pk,
+            label=recipe.name or f"#{recipe.pk}",
+            changed_fields=changed,
+        ))
+
+    root = ordered[0]
+    clicked = ordered[-1]
+    root_diffs = _recipe_diff_fields(root, clicked) if len(ordered) > 1 else ()
+
+    return PathDeltaResult(
+        root_diffs=root_diffs,
+        path_nodes=tuple(path_nodes),
+        missing_ids=missing,
     )

@@ -21,6 +21,7 @@ from src.domain.images import queries as image_queries
 from src.domain.images.thumbnails import operations as thumbnail_operations
 from src.domain.recipes import graph as recipe_graph
 from src.domain.recipes import operations as recipe_operations
+from src.domain.recipes import queries as recipe_queries
 
 
 def _active_filters_from_request(request) -> dict[str, list[str]]:
@@ -253,6 +254,16 @@ def recipes_explorer_view(request: http.HttpRequest) -> http.HttpResponse:
 _RECIPES_GRAPH_DEFAULT_FILM_SIM = "Provia"
 
 
+def _root_fields_json(root_id: int | None) -> list[dict[str, str]]:
+    if root_id is None:
+        return []
+    try:
+        root = models.FujifilmRecipe.objects.get(pk=root_id)
+    except models.FujifilmRecipe.DoesNotExist:
+        return []
+    return [{"field": f.field, "value": f.value} for f in recipe_queries.get_recipe_all_fields(recipe=root)]
+
+
 def recipes_graph_view(request: http.HttpRequest) -> http.HttpResponse:
     film_simulation = request.GET.get("film_sim", _RECIPES_GRAPH_DEFAULT_FILM_SIM)
     result = build_graph_uc.build_recipe_network(film_simulation=film_simulation)
@@ -279,13 +290,25 @@ def recipes_graph_view(request: http.HttpRequest) -> http.HttpResponse:
         }
         for e in result.graph_data.edges
     ]
+    root_fields = _root_fields_json(root_id)
+    root_label = ""
+    if root_id is not None:
+        root_node = next((n for n in result.graph_data.nodes if n.id == root_id), None)
+        root_label = root_node.label if root_node else ""
     if request.headers.get("Accept") == "application/json":
-        return http.JsonResponse({"elements": cyto_elements, "root_id": root_id})
+        return http.JsonResponse({
+            "elements": cyto_elements,
+            "root_id": root_id,
+            "root_fields": root_fields,
+            "root_label": root_label,
+        })
     return shortcuts.render(request, "recipes/recipes_graph.html", {
         "graph_elements_json": json.dumps(cyto_elements),
         "root_id": root_id,
         "film_simulations": result.film_simulations,
         "active_film_simulation": result.active_film_simulation,
+        "root_fields_json": json.dumps(root_fields),
+        "root_label": root_label,
     })
 
 
@@ -305,12 +328,51 @@ def recipe_graph_view(request: http.HttpRequest, recipe_id: int) -> http.HttpRes
         {"data": {"source": str(e.source), "target": str(e.target), "distance": e.distance}}
         for e in graph_data.edges
     ]
+    root_fields = [{"field": f.field, "value": f.value} for f in recipe_queries.get_recipe_all_fields(recipe=root)]
+    root_label = root.name or f"#{root.pk}"
     if request.headers.get("Accept") == "application/json":
-        return http.JsonResponse({"root_id": graph_data.root_id, "elements": cyto_elements})
+        return http.JsonResponse({
+            "root_id": graph_data.root_id,
+            "elements": cyto_elements,
+            "root_fields": root_fields,
+            "root_label": root_label,
+        })
     return shortcuts.render(request, "recipes/recipe_graph.html", {
         "root_id": graph_data.root_id,
         "graph_elements_json": json.dumps(cyto_elements),
         "max_distance": max_distance,
+        "root_fields_json": json.dumps(root_fields),
+        "root_label": root_label,
+    })
+
+
+def recipe_path_deltas_view(request: http.HttpRequest) -> http.HttpResponse:
+    """Return per-node field deltas for an ordered path of recipe IDs.
+
+    Accepts GET ?ids=1,2,3 where IDs are ordered root → clicked node.
+    Returns JSON with root_diffs (root vs clicked) and path_nodes (per-step diffs).
+    """
+    ids_param = request.GET.get("ids", "")
+    try:
+        path_ids = [int(x) for x in ids_param.split(",") if x.strip()]
+    except ValueError:
+        return http.HttpResponseBadRequest("ids must be comma-separated integers")
+    if not path_ids:
+        return http.HttpResponseBadRequest("ids parameter is required")
+    result = recipe_queries.get_path_deltas(path_ids=path_ids)
+    def _serialize_field(f: recipe_queries.FieldValue) -> dict[str, str | None]:
+        return {"field": f.field, "value": f.value, "before": f.before}
+
+    return http.JsonResponse({
+        "root_diffs": [_serialize_field(f) for f in result.root_diffs],
+        "path_nodes": [
+            {
+                "id": n.recipe_id,
+                "label": n.label,
+                "fields": [_serialize_field(f) for f in n.changed_fields],
+            }
+            for n in result.path_nodes
+        ],
     })
 
 
