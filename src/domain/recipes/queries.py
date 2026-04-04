@@ -203,6 +203,19 @@ def get_image_counts_for_film_simulation(*, film_simulation: str) -> dict[int, i
     }
 
 
+def get_image_counts(*, recipe_pks: list[int]) -> dict[int, int]:
+    """Return a mapping of recipe_id → image count for the given recipe PKs."""
+    return {
+        row["fujifilm_recipe_id"]: row["count"]
+        for row in (
+            models.Image.objects
+            .filter(fujifilm_recipe_id__in=recipe_pks)
+            .values("fujifilm_recipe_id")
+            .annotate(count=Count("id"))
+        )
+    }
+
+
 def get_recipe_comparison(*, recipe_ids: list[int]) -> RecipeComparisonResult:
     """Fetch recipes, usage stats, and monthly breakdowns for the given IDs.
 

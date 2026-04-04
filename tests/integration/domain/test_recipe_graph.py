@@ -50,26 +50,26 @@ class TestHammingDistance:
 class TestBuildRecipeGraphNodes:
     def test_root_node_always_included(self):
         root = FujifilmRecipeFactory()
-        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4, image_counts={})
         node_ids = {n.id for n in graph.nodes}
         assert root.pk in node_ids
 
     def test_root_node_has_distance_zero(self):
         root = FujifilmRecipeFactory()
-        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4, image_counts={})
         root_node = next(n for n in graph.nodes if n.id == root.pk)
         assert root_node.distance == 0
 
     def test_nearby_recipe_included(self):
         root = FujifilmRecipeFactory(film_simulation="Provia")
         close = FujifilmRecipeFactory(film_simulation="Velvia")  # distance 1
-        graph = build_recipe_graph(root=root, all_recipes=[root, close], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root, close], max_distance=4, image_counts={})
         assert close.pk in {n.id for n in graph.nodes}
 
     def test_node_distance_reflects_hamming_distance_from_root(self):
         root = FujifilmRecipeFactory(film_simulation="Provia", white_balance_red=0)
         close = FujifilmRecipeFactory(film_simulation="Velvia", white_balance_red=0)  # distance 1
-        graph = build_recipe_graph(root=root, all_recipes=[root, close], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root, close], max_distance=4, image_counts={})
         node = next(n for n in graph.nodes if n.id == close.pk)
         assert node.distance == 1
 
@@ -90,24 +90,24 @@ class TestBuildRecipeGraphNodes:
             white_balance="Daylight",
         )
         assert hamming_distance(a=root, b=far) >= 4
-        graph = build_recipe_graph(root=root, all_recipes=[root, far], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root, far], max_distance=4, image_counts={})
         assert far.pk not in {n.id for n in graph.nodes}
 
     def test_unnamed_recipe_label_uses_id_prefix(self):
         root = FujifilmRecipeFactory(name="")
-        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4, image_counts={})
         root_node = next(n for n in graph.nodes if n.id == root.pk)
         assert root_node.label == f"#{root.pk}"
 
     def test_named_recipe_label_uses_name(self):
         root = FujifilmRecipeFactory(name="My Recipe")
-        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4, image_counts={})
         root_node = next(n for n in graph.nodes if n.id == root.pk)
         assert root_node.label == "My Recipe"
 
     def test_returns_frozen_dataclass(self):
         root = FujifilmRecipeFactory()
-        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4, image_counts={})
         assert isinstance(graph, RecipeGraphData)
         assert isinstance(graph.nodes[0], RecipeNode)
 
@@ -120,13 +120,13 @@ class TestBuildRecipeGraphNodes:
 class TestBuildRecipeGraphEdges:
     def test_solo_root_has_no_edges(self):
         root = FujifilmRecipeFactory()
-        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4, image_counts={})
         assert graph.edges == ()
 
     def test_direct_neighbour_connects_to_root(self):
         root = FujifilmRecipeFactory(film_simulation="Provia", white_balance_red=0)
         close = FujifilmRecipeFactory(film_simulation="Velvia", white_balance_red=0)
-        graph = build_recipe_graph(root=root, all_recipes=[root, close], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root, close], max_distance=4, image_counts={})
         assert any(e.source == root.pk and e.target == close.pk for e in graph.edges)
 
     def test_chain_topology_avoids_direct_root_connection(self):
@@ -139,7 +139,7 @@ class TestBuildRecipeGraphEdges:
         assert hamming_distance(a=root, b=n3) == 2
         assert hamming_distance(a=n2, b=n3) == 1
 
-        graph = build_recipe_graph(root=root, all_recipes=[root, n2, n3], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root, n2, n3], max_distance=4, image_counts={})
 
         # n3 must connect through n2, not directly to root
         assert any(e.source == n2.pk and e.target == n3.pk for e in graph.edges)
@@ -162,19 +162,19 @@ class TestBuildRecipeGraphEdges:
         assert hamming_distance(a=root, b=distant) == 3
 
         # Only these two — no intermediate nodes
-        graph = build_recipe_graph(root=root, all_recipes=[root, distant], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root, distant], max_distance=4, image_counts={})
         edge_sources = {e.source for e in graph.edges}
         assert root.pk in edge_sources  # root must be the source since no intermediates
 
     def test_edge_distance_reflects_hamming_between_connected_nodes(self):
         root = FujifilmRecipeFactory(film_simulation="Provia", white_balance_red=0)
         close = FujifilmRecipeFactory(film_simulation="Velvia", white_balance_red=0)
-        graph = build_recipe_graph(root=root, all_recipes=[root, close], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root, close], max_distance=4, image_counts={})
         edge = next(e for e in graph.edges if e.target == close.pk)
         assert isinstance(edge, RecipeEdge)
         assert edge.distance == 1
 
     def test_root_id_is_set_correctly(self):
         root = FujifilmRecipeFactory()
-        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4)
+        graph = build_recipe_graph(root=root, all_recipes=[root], max_distance=4, image_counts={})
         assert graph.root_id == root.pk

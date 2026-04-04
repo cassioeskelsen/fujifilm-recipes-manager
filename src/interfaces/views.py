@@ -316,16 +316,32 @@ def recipe_graph_view(request: http.HttpRequest, recipe_id: int) -> http.HttpRes
     root = shortcuts.get_object_or_404(models.FujifilmRecipe, pk=recipe_id)
     all_recipes = list(models.FujifilmRecipe.objects.all())
     max_distance: int = settings.RECIPE_GRAPH_MAX_DISTANCE
+    image_counts = recipe_queries.get_image_counts(recipe_pks=[r.pk for r in all_recipes])
     graph_data = recipe_graph.build_recipe_graph(
         root=root,
         all_recipes=all_recipes,
         max_distance=max_distance,
+        image_counts=image_counts,
     )
     cyto_elements = [
-        {"data": {"id": str(n.id), "label": n.label, "distance": n.distance}}
+        {
+            "data": {
+                "id": str(n.id),
+                "label": n.label,
+                "distance": n.distance,
+                "image_count": n.image_count,
+            }
+        }
         for n in graph_data.nodes
     ] + [
-        {"data": {"source": str(e.source), "target": str(e.target), "distance": e.distance}}
+        {
+            "data": {
+                "source": str(e.source),
+                "target": str(e.target),
+                "distance": e.distance,
+                "distanceLabel": f"d={e.distance}" if e.distance > 1 else "",
+            }
+        }
         for e in graph_data.edges
     ]
     root_fields = [{"field": f.field, "value": f.value} for f in recipe_queries.get_recipe_all_fields(recipe=root)]
@@ -333,9 +349,9 @@ def recipe_graph_view(request: http.HttpRequest, recipe_id: int) -> http.HttpRes
     if request.headers.get("Accept") == "application/json":
         return http.JsonResponse({
             "root_id": graph_data.root_id,
-            "elements": cyto_elements,
-            "root_fields": root_fields,
             "root_label": root_label,
+            "root_fields": root_fields,
+            "elements": cyto_elements,
         })
     return shortcuts.render(request, "recipes/recipe_graph.html", {
         "root_id": graph_data.root_id,

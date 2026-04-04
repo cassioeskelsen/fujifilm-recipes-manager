@@ -45,6 +45,7 @@ class RecipeNode:
     id: int
     label: str
     distance: int
+    image_count: int
 
 
 @attrs.frozen
@@ -247,6 +248,7 @@ def build_recipe_graph(
     root: models.FujifilmRecipe,
     all_recipes: list[models.FujifilmRecipe],
     max_distance: int,
+    image_counts: dict[int, int],
 ) -> RecipeGraphData:
     """Build a recipe graph centred on *root*.
 
@@ -276,6 +278,7 @@ def build_recipe_graph(
             id=r.pk,
             label=r.name or f"#{r.pk}",
             distance=dist_from_root[r.pk],
+            image_count=image_counts.get(r.pk, 0),
         )
         for r in visible.values()
     )
