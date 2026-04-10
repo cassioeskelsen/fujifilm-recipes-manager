@@ -1,4 +1,4 @@
-name: Tests
+name: Migrations
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  migrations:
     runs-on: ubuntu-latest
 
     services:
@@ -33,12 +33,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install system dependencies
-        run: sudo apt-get install -y libimage-exiftool-perl
-
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt -r requirements-dev.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Run tests
-        run: pytest
+      - name: Check no missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Check migrations can be applied
+        run: python manage.py migrate
